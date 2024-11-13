@@ -112,77 +112,92 @@ bool isDtlsPacket(Uint8List buf, int offset, int arrayLen) {
     // }
   }
 
-switch (header.contentType) {
-	case ContentType.Handshake:
-		if (decryptedBytes == null) {
-			final offsetBackup = offset;
-			var (handshakeHeader, decodedOffset, err) = DecodeHandshakeHeader(buf, offset, arrayLen);
-			offset=decodedOffset;
-      if (err != null) {
-				return (null, null, null, offset, err);
-			}
-			if (handshakeHeader.length.toUint32() != handshakeHeader.fragmentLength.toUint32()) {
-				// Ignore fragmented packets
-				print( "Ignore fragmented packets: ${header.contentType}" );
-				return (null, null, null, offset + handshakeHeader.fragmentLength.toUint32(), null);
-			}
-      var result;
-			 (result, offset, err) = decodeHandshake(header, handshakeHeader, buf, offset, arrayLen);
-			if (err != null) {
-				return (null, null, null, offset, err);
-			}
-		// Uint8List	copyArray = make([]byte, offset-offsetBackup);
-		// 	copy(copyArray, buf[offsetBackup:offset])
+  switch (header.contentType) {
+    case ContentType.Handshake:
+      if (decryptedBytes == null) {
+        final offsetBackup = offset;
+        var (handshakeHeader, decodedOffset, err) =
+            DecodeHandshakeHeader(buf, offset, arrayLen);
+        offset = decodedOffset;
+        if (err != null) {
+          return (null, null, null, offset, err);
+        }
+        if (handshakeHeader.length.toUint32() !=
+            handshakeHeader.fragmentLength.toUint32()) {
+          // Ignore fragmented packets
+          print("Ignore fragmented packets: ${header.contentType}");
+          return (
+            null,
+            null,
+            null,
+            offset + handshakeHeader.fragmentLength.toUint32(),
+            null
+          );
+        }
+        var result;
+        (result, offset, err) =
+            decodeHandshake(header, handshakeHeader, buf, offset, arrayLen);
+        if (err != null) {
+          return (null, null, null, offset, err);
+        }
+        // Uint8List	copyArray = make([]byte, offset-offsetBackup);
+        // 	copy(copyArray, buf[offsetBackup:offset])
 
         // Create a new array with the specified length
-  Uint8List copyArray = Uint8List(offset - offsetBackup);
+        Uint8List copyArray = Uint8List(offset - offsetBackup);
 
-  // Copy the specified range from the buffer to the new array
-  copyArray.setRange(0, offset - offsetBackup, buf.sublist(offsetBackup, offset));
-			//context.HandshakeMessagesReceived[handshakeHeader.HandshakeType] = copyArray
+        // Copy the specified range from the buffer to the new array
+        copyArray.setRange(
+            0, offset - offsetBackup, buf.sublist(offsetBackup, offset));
+        //context.HandshakeMessagesReceived[handshakeHeader.HandshakeType] = copyArray
 
-			return (header, handshakeHeader, result, offset, err);
-		} else {
-			var (handshakeHeader, decryptedOffset, err) = DecodeHandshakeHeader(decryptedBytes, 0, len(decryptedBytes))
-			offset=decryptedOffset=decryptedOffset;
-      if (err != null) {
-				return (null, null, null, offset, err);
-			}
-var result;
-			(result, _, err) = decodeHandshake(header, handshakeHeader, decryptedBytes, decryptedOffset, len(decryptedBytes)-decryptedOffset)
+        return (header, handshakeHeader, result, offset, err);
+      } else {
+        var (handshakeHeader, decryptedOffset, err) =
+            DecodeHandshakeHeader(decryptedBytes, 0, decryptedBytes.length);
+        offset = decryptedOffset = decryptedOffset;
+        if (err != null) {
+          return (null, null, null, offset, err);
+        }
+        var result;
+        (result, _, err) = decodeHandshake(
+            header,
+            handshakeHeader,
+            decryptedBytes,
+            decryptedOffset,
+            decryptedBytes.length - decryptedOffset);
 
-			
-       Uint8List copyArray = Uint8List(decryptedBytes.length);
+        Uint8List copyArray = Uint8List(decryptedBytes.length);
 
-  // Copy the specified range from the buffer to the new array
-  copyArray.setRange(0, decryptedBytes.length, buf.sublist(0, decryptedBytes.length));
+        // Copy the specified range from the buffer to the new array
+        copyArray.setRange(
+            0, decryptedBytes.length, buf.sublist(0, decryptedBytes.length));
 
-      
-      //context.HandshakeMessagesReceived[handshakeHeader.HandshakeType] = copyArray
+        //context.HandshakeMessagesReceived[handshakeHeader.HandshakeType] = copyArray
 
-			return (header, handshakeHeader, result, offset, err);
-		}
-	case ContentType.ChangeCipherSpec:
-		// changeCipherSpec := &ChangeCipherSpec{}
-		// offset, err := changeCipherSpec.Decode(buf, offset, arrayLen)
-		// if err != nil {
-		// 	return nil, nil, nil, offset, err
-		// }
-		// return header, nil, changeCipherSpec, offset, nil
-	case ContentType.Alert:
-		// alert := &Alert{}
-		// if decryptedBytes == nil {
-		// 	offset, err = alert.Decode(buf, offset, arrayLen)
-		// } else {
-		// 	_, err = alert.Decode(decryptedBytes, 0, len(decryptedBytes))
-		// }
-		// if err != nil {
-		// 	return nil, nil, nil, offset, err
-		// }
-		// return header, nil, alert, offset, nil
+        return (header, handshakeHeader, result, offset, err);
+      }
+    case ContentType.ChangeCipherSpec:
+    // changeCipherSpec := &ChangeCipherSpec{}
+    // offset, err := changeCipherSpec.Decode(buf, offset, arrayLen)
+    // if err != nil {
+    // 	return nil, nil, nil, offset, err
+    // }
+    // return header, nil, changeCipherSpec, offset, nil
+    case ContentType.Alert:
+    // alert := &Alert{}
+    // if decryptedBytes == nil {
+    // 	offset, err = alert.Decode(buf, offset, arrayLen)
+    // } else {
+    // 	_, err = alert.Decode(decryptedBytes, 0, len(decryptedBytes))
+    // }
+    // if err != nil {
+    // 	return nil, nil, nil, offset, err
+    // }
+    // return header, nil, alert, offset, nil
 
-	default:
-		return (null, null, null, offset, UnknownDtlsContentTypeException());
-	}
+    default:
+      return (null, null, null, offset, UnknownDtlsContentTypeException());
+  }
   return (null, null, null, null, null);
 }
