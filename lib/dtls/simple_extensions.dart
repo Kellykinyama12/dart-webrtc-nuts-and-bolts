@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/cipher_suites.dart';
 
 class ExtensionType {
   final int value;
@@ -225,50 +226,50 @@ class ExtUnknown implements Extension {
   }
 }
 
-class SRTPProtectionProfile {
-  final int value;
-  const SRTPProtectionProfile(this.value);
+// class SRTPProtectionProfile {
+//   final int value;
+//   const SRTPProtectionProfile(this.value);
 
-  @override
-  String toString() {
-    switch (value) {
-      case 0x0007:
-        return 'SRTP_AEAD_AES_128_GCM (0x${value.toRadixString(16)})';
-      default:
-        return 'Unknown SRTP Protection Profile (0x${value.toRadixString(16)})';
-    }
-  }
-}
+//   @override
+//   String toString() {
+//     switch (value) {
+//       case 0x0007:
+//         return 'SRTP_AEAD_AES_128_GCM (0x${value.toRadixString(16)})';
+//       default:
+//         return 'Unknown SRTP Protection Profile (0x${value.toRadixString(16)})';
+//     }
+//   }
+// }
 
-class PointFormat {
-  final int value;
-  const PointFormat(this.value);
+// class PointFormat {
+//   final int value;
+//   const PointFormat(this.value);
 
-  @override
-  String toString() {
-    switch (value) {
-      case 0:
-        return 'Uncompressed (0x${value.toRadixString(16)})';
-      default:
-        return 'Unknown Point Format (0x${value.toRadixString(16)})';
-    }
-  }
-}
+//   @override
+//   String toString() {
+//     switch (value) {
+//       case 0:
+//         return 'Uncompressed (0x${value.toRadixString(16)})';
+//       default:
+//         return 'Unknown Point Format (0x${value.toRadixString(16)})';
+//     }
+//   }
+// }
 
-class Curve {
-  final int value;
-  const Curve(this.value);
+// class Curve {
+//   final int value;
+//   const Curve(this.value);
 
-  @override
-  String toString() {
-    switch (value) {
-      case 0x001d:
-        return 'X25519 (0x${value.toRadixString(16)})';
-      default:
-        return 'Unknown Curve (0x${value.toRadixString(16)})';
-    }
-  }
-}
+//   @override
+//   String toString() {
+//     switch (value) {
+//       case 0x001d:
+//         return 'X25519 (0x${value.toRadixString(16)})';
+//       default:
+//         return 'Unknown Curve (0x${value.toRadixString(16)})';
+//     }
+//   }
+// }
 
 Map<ExtensionType, Extension> decodeExtensionMap(
     Uint8List buf, int offset, int arrayLen) {

@@ -5,6 +5,8 @@ import 'package:dart_webrtc_nuts_and_bolts/dtls/dtls_message.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/client_hello.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/handshake_context.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/hello_verify_request.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/server_hello.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/simple_extensions.dart';
 
 class HandshakeManager {
   // HandshakeContext newContext(InternetAddress addr, RawDatagramSocket conn,
@@ -87,5 +89,34 @@ class HandshakeManager {
       cookie[i] = random.nextInt(256);
     }
     return cookie;
+  }
+
+  ServerHello createDtlsServerHello(HandshakeContext context) {
+    // if (context.useExtendedMasterSecret) {
+    // 	AddExtension(result.Extensions, new(ExtUseExtendedMasterSecret))
+    // }
+    // AddExtension(result.Extensions, new(ExtRenegotiationInfo))
+
+    if (context.srtpProtectionProfile != 0) {
+      ExtUseSRTP useSRTP = ExtUseSRTP(
+          protectionProfiles: [context.srtpProtectionProfile],
+          mki: Uint8List(0));
+      // useSRTP.ProtectionProfiles = []SRTPProtectionProfile{context.SRTPProtectionProfile} // SRTPProtectionProfile_AEAD_AES_128_GCM 0x0007
+      // AddExtension(result.Extensions, useSRTP)
+    }
+    ExtSupportedPointFormats supportedPointFormats =
+        ExtSupportedPointFormats(pointFormats: context.pointFormats);
+    // TODO: For now, we choose one point format hardcoded. It should be choosen by a negotiation process.
+    // supportedPointFormats.PointFormats = []PointFormat{PointFormatUncompressed} // 0x00
+    // AddExtension(result.Extensions, supportedPointFormats)
+
+    return ServerHello(
+      version: context.protocolVersion,
+      random: context.serverRandom,
+      sessionId: context.sessionId,
+      cipherSuiteId: context.cipherSuiteId,
+      compressionMethodId: context.compressionMethodId,
+      extensions: context.extensions,
+    );
   }
 }
