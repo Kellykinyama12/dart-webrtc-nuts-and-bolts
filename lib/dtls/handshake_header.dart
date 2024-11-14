@@ -1,7 +1,15 @@
 import 'dart:typed_data';
 
 import 'package:dart_webrtc_nuts_and_bolts/dtls/dtls_message.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/certificate.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/certificate_request.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/certificate_verify.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/client_hello.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/client_key_exchange.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/finished.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/server_hello.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/server_hello_done.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/server_key_exchange.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/record_header.dart';
 
 enum HandshakeType {
@@ -29,7 +37,8 @@ enum HandshakeType {
 
 class IncompleteDtlsMessageException implements Exception {
   final String message;
-  IncompleteDtlsMessageException([this.message = 'Data contains incomplete DTLS message']);
+  IncompleteDtlsMessageException(
+      [this.message = 'Data contains incomplete DTLS message']);
 
   @override
   String toString() => 'IncompleteDtlsMessageException: $message';
@@ -37,7 +46,8 @@ class IncompleteDtlsMessageException implements Exception {
 
 class UnknownDtlsContentTypeException implements Exception {
   final String message;
-  UnknownDtlsContentTypeException([this.message = 'Data contains unknown DTLS content type']);
+  UnknownDtlsContentTypeException(
+      [this.message = 'Data contains unknown DTLS content type']);
 
   @override
   String toString() => 'UnknownDtlsContentTypeException: $message';
@@ -45,31 +55,32 @@ class UnknownDtlsContentTypeException implements Exception {
 
 class UnknownDtlsHandshakeTypeException implements Exception {
   final String message;
-  UnknownDtlsHandshakeTypeException([this.message = 'Data contains unknown DTLS handshake type']);
+  UnknownDtlsHandshakeTypeException(
+      [this.message = 'Data contains unknown DTLS handshake type']);
 
   @override
   String toString() => 'UnknownDtlsHandshakeTypeException: $message';
 }
 
-void main() {
-  try {
-    throw IncompleteDtlsMessageException();
-  } catch (e) {
-    print(e);
-  }
+// void main() {
+//   try {
+//     throw IncompleteDtlsMessageException();
+//   } catch (e) {
+//     print(e);
+//   }
 
-  try {
-    throw UnknownDtlsContentTypeException();
-  } catch (e) {
-    print(e);
-  }
+//   try {
+//     throw UnknownDtlsContentTypeException();
+//   } catch (e) {
+//     print(e);
+//   }
 
-  try {
-    throw UnknownDtlsHandshakeTypeException();
-  } catch (e) {
-    print(e);
-  }
-}
+//   try {
+//     throw UnknownDtlsHandshakeTypeException();
+//   } catch (e) {
+//     print(e);
+//   }
+// }
 
 class HandshakeHeader extends BaseDtlsHandshakeMessage {
   HandshakeType handshakeType;
@@ -157,34 +168,32 @@ class HandshakeHeader extends BaseDtlsHandshakeMessage {
   // return result, offset, nil
 }
 
-(BaseDtlsMessage?, int, Exception?) decodeHandshake( RecordHeader header, HandshakeHeader handshakeHeader, Uint8List buf,
-  int offset,
-  int arrayLen)  {
-	var result;
-	switch (handshakeHeader.handshakeType) {
-	case HandshakeType.ClientHello:
-		result = ClientHello();
-	case HandshakeType.ServerHello:
-		//result = new(ServerHello)
-	case HandshakeType.Certificate:
-		//result = new(Certificate)
-	case HandshakeType.ServerKeyExchange:
-		//result = new(ServerKeyExchange)
-	case HandshakeType.CertificateRequest:
-		//result = new(CertificateRequest)
-	case HandshakeType.ServerHelloDone:
-		//result = new(ServerHelloDone)
-	case HandshakeType.ClientKeyExchange:
-		//result = new(ClientKeyExchange)
-	case HandshakeType.CertificateVerify:
-		//result = new(CertificateVerify)
-	case HandshakeType.Finished:
-		//result = new(Finished)
-	default:
-		return (null, offset, UnknownDtlsContentTypeException());
-	}
+(BaseDtlsMessage?, int, Exception?) decodeHandshake(RecordHeader header,
+    HandshakeHeader handshakeHeader, Uint8List buf, int offset, int arrayLen) {
+  var result;
+  switch (handshakeHeader.handshakeType) {
+    case HandshakeType.ClientHello:
+      result = ClientHello.decode(buf, offset, arrayLen);
+    case HandshakeType.ServerHello:
+    result = ServerHello.decode(buf, offset, arrayLen);
+    case HandshakeType.Certificate:
+    result = Certificate.decode(buf, offset, arrayLen);
+    case HandshakeType.ServerKeyExchange:
+  result = ServerKeyExchange.decode(buf, offset, arrayLen);
+    case HandshakeType.CertificateRequest:
+  result = CertificateRequest.decode(buf, offset, arrayLen);
+    case HandshakeType.ServerHelloDone:
+    result = ServerHelloDone.decode(buf, offset, arrayLen);
+    case HandshakeType.ClientKeyExchange:
+    result = ClientKeyExchange.decode(buf, offset, arrayLen);
+    case HandshakeType.CertificateVerify:
+    result = CertificateVerify.decode(buf, offset, arrayLen);
+    case HandshakeType.Finished:
+    result = Finished.decode(buf, offset, arrayLen);
+    default:
+      return (null, offset, UnknownDtlsContentTypeException());
+  }
   var err;
-	(offset, err) = result.Decode(buf, offset, arrayLen);
-	return (result, offset, err);
-
+  (offset, err) = result.Decode(buf, offset, arrayLen);
+  return (result, offset, err);
 }

@@ -22,9 +22,10 @@ class Certificate {
     return HandshakeType.Certificate;
   }
 
-  int decode(Uint8List buf, int offset) {
-    certificates = [];
-    var length = Uint24.fromBytes(buf.sublist(offset, offset + 3));
+  static (Certificate, int, Exception?) decode(
+      Uint8List buf, int offset, int arrayLen) {
+    List<Uint8List> certificates = [];
+    Uint24 length = Uint24.fromBytes(buf.sublist(offset, offset + 3));
     var lengthInt = length.toUint32();
     offset += 3;
     var offsetBackup = offset;
@@ -39,7 +40,7 @@ class Certificate {
       offset += certificateLengthInt;
       certificates.add(certificateBytes);
     }
-    return offset;
+    return (Certificate(certificates: certificates), offset, null);
   }
 
   Uint8List encode() {

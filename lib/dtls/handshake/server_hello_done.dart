@@ -17,8 +17,9 @@ class ServerHelloDone {
     return HandshakeType.ServerHelloDone;
   }
 
-  int decode(Uint8List buf, int offset, int arrayLen) {
-    return offset;
+  static (ServerHelloDone, int, Exception?) decode(
+      Uint8List buf, int offset, int arrayLen) {
+    return (ServerHelloDone(), offset, null);
   }
 
   Uint8List encode() {

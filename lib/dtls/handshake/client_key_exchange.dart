@@ -21,13 +21,14 @@ class ClientKeyExchange {
     return HandshakeType.ClientKeyExchange;
   }
 
-  int decode(Uint8List buf, int offset) {
+  static (ClientKeyExchange, int, Exception?) decode(
+      Uint8List buf, int offset, int arrayLen) {
     var publicKeyLength = buf[offset];
     offset++;
-    publicKey =
+    Uint8List publicKey =
         Uint8List.fromList(buf.sublist(offset, offset + publicKeyLength));
     offset += publicKeyLength;
-    return offset;
+    return (ClientKeyExchange(publicKey: publicKey), offset, null);
   }
 
   Uint8List encode() {

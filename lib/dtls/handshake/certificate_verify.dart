@@ -27,8 +27,9 @@ class CertificateVerify {
     return HandshakeType.CertificateVerify;
   }
 
-  int decode(Uint8List buf, int offset) {
-    algoPair = AlgoPair(
+  static (CertificateVerify, int, Exception?) decode(
+      Uint8List buf, int offset, int arrayLen) {
+    AlgoPair algoPair = AlgoPair(
       hashAlgorithm: HashAlgorithm(buf[offset]),
       signatureAlgorithm: SignatureAlgorithm(buf[offset + 1]),
     );
@@ -36,11 +37,15 @@ class CertificateVerify {
 
     var signatureLength = (buf[offset] << 8) | buf[offset + 1];
     offset += 2;
-    signature =
+    Uint8List signature =
         Uint8List.fromList(buf.sublist(offset, offset + signatureLength));
     offset += signatureLength;
 
-    return offset;
+    return (
+      CertificateVerify(algoPair: algoPair, signature: signature),
+      offset,
+      null
+    );
   }
 
   Uint8List encode() {

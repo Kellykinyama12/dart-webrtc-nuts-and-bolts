@@ -67,27 +67,39 @@ class ServerHello {
     return HandshakeType.ServerHello;
   }
 
-  int decode(Uint8List buf, int offset) {
-    version = DtlsVersion.fromUint16((buf[offset] << 8) | buf[offset + 1]);
+  static (ServerHello, int, Exception?) decode(
+      Uint8List buf, int offset, int arrayLen) {
+    DtlsVersion version =
+        DtlsVersion.fromUint16((buf[offset] << 8) | buf[offset + 1]);
     offset += 2;
 
-    random = Random.decode(buf, offset);
+    Random random = Random.decode(buf, offset);
     offset += 32;
 
     var sessionIdLength = buf[offset];
     offset++;
-    sessionId =
+    Uint8List sessionId =
         Uint8List.fromList(buf.sublist(offset, offset + sessionIdLength));
     offset += sessionIdLength;
 
-    cipherSuiteId = (buf[offset] << 8) | buf[offset + 1];
+    int cipherSuiteId = (buf[offset] << 8) | buf[offset + 1];
     offset += 2;
 
-    compressionMethodId = buf[offset];
+    int compressionMethodId = buf[offset];
     offset++;
 
-    extensions = decodeExtensionMap(buf, offset);
-    return offset;
+    Map<ExtensionType, Extension> extensions = decodeExtensionMap(buf, offset);
+    return (
+      ServerHello(
+          version: version,
+          random: random,
+          sessionId: sessionId,
+          cipherSuiteId: cipherSuiteId,
+          compressionMethodId: compressionMethodId,
+          extensions: extensions),
+      offset,
+      null
+    );
   }
 
   Uint8List encode() {

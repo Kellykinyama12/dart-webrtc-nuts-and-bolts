@@ -35,17 +35,18 @@ class CertificateRequest {
     return HandshakeType.CertificateRequest;
   }
 
-  int decode(Uint8List buf, int offset) {
+  static (CertificateRequest, int, Exception?) decode(
+      Uint8List buf, int offset, int arrayLen) {
     var certificateTypeCount = buf[offset];
     offset++;
-    certificateTypes = List.generate(
+    List<CertificateType> certificateTypes = List.generate(
         certificateTypeCount, (i) => CertificateType(buf[offset + i]));
     offset += certificateTypeCount;
 
     var algoPairLength = (buf[offset] << 8) | buf[offset + 1];
     offset += 2;
     var algoPairCount = algoPairLength ~/ 2;
-    algoPairs = List.generate(algoPairCount, (i) {
+    List<AlgoPair> algoPairs = List.generate(algoPairCount, (i) {
       var algoPair = AlgoPair(
         hashAlgorithm: HashAlgorithm(buf[offset]),
         signatureAlgorithm: SignatureAlgorithm(buf[offset + 1]),
@@ -56,7 +57,12 @@ class CertificateRequest {
 
     offset += 2; // Distinguished Names Length
 
-    return offset;
+    return (
+      CertificateRequest(
+          certificateTypes: certificateTypes, algoPairs: algoPairs),
+      offset,
+      null
+    );
   }
 
   Uint8List encode() {

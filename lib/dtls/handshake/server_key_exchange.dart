@@ -33,15 +33,16 @@ class ServerKeyExchange {
     return HandshakeType.ServerKeyExchange;
   }
 
-  int decode(Uint8List buf, int offset) {
-    ellipticCurveType = CurveType(buf[offset]);
+  static (ServerKeyExchange, int, Exception?) decode(
+      Uint8List buf, int offset, int arrayLen) {
+    CurveType ellipticCurveType = CurveType(buf[offset]);
     offset++;
-    namedCurve = Curve((buf[offset] << 8) | buf[offset + 1]);
+    Curve namedCurve = Curve((buf[offset] << 8) | buf[offset + 1]);
     offset += 2;
 
     var publicKeyLength = buf[offset];
     offset++;
-    publicKey =
+    Uint8List publicKey =
         Uint8List.fromList(buf.sublist(offset, offset + publicKeyLength));
     offset += publicKeyLength;
 
@@ -50,11 +51,20 @@ class ServerKeyExchange {
 
     var signatureLength = (buf[offset] << 8) | buf[offset + 1];
     offset += 2;
-    signature =
+    Uint8List signature =
         Uint8List.fromList(buf.sublist(offset, offset + signatureLength));
     offset += signatureLength;
 
-    return offset;
+    return (
+      ServerKeyExchange(
+          ellipticCurveType: ellipticCurveType,
+          namedCurve: namedCurve,
+          publicKey: publicKey,
+          algoPair: algoPair,
+          signature: signature),
+      offset,
+      null
+    );
   }
 
   Uint8List encode() {
