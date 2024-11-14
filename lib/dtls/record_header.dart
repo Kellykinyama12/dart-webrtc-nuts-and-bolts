@@ -29,6 +29,12 @@ class DtlsVersion {
   factory DtlsVersion.fromUint16(int value) {
     return DtlsVersion((value >> 8) & 0xFF, value & 0xFF);
   }
+
+  @override
+  String toString() {
+    // TODO: implement toString
+    return "{DtlsVersion: {magor: $major, minor: $minor}}";
+  }
 }
 
 const int SequenceNumberSize = 6; // Define the size of the sequence number

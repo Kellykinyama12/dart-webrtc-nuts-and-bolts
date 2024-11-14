@@ -15,7 +15,7 @@ class ClientHello {
   Uint8List sessionID;
   List<CipherSuiteID> cipherSuiteIDs;
   Uint8List compressionMethodIDs;
-  Map<ExtensionType, Extension> extensions;
+  Map<ExtensionType, dynamic> extensions;
 
   ClientHello({
     required this.version,
@@ -49,7 +49,81 @@ class ClientHello {
   }
 
   Uint8List encode() {
-    // Implement encoding logic here
+    // Calculate the length of the encoded message
+    // int length = 2 +
+    //     32 +
+    //     1 +
+    //     sessionID.length +
+    //     1 +
+    //     cookie.length +
+    //     2 +
+    //     (cipherSuiteIDs.length * 2) +
+    //     1 +
+    //     compressionMethodIDs.length +
+    //     2;
+    // extensions.forEach((key, value) {
+    //   length += 4 + value.encode().length;
+    // });
+
+    // // Create a buffer to hold the encoded message
+    // Uint8List result = Uint8List(length);
+    // ByteData writer = ByteData.sublistView(result);
+
+    // int offset = 0;
+
+    // // Encode version
+    // writer.setUint16(offset, version.toUint16(), Endian.big);
+    // offset += 2;
+
+    // // Encode random
+    // result.setRange(offset, offset + 32, random.bytes);
+    // offset += 32;
+
+    // // Encode session ID
+    // result[offset] = sessionID.length;
+    // offset++;
+    // result.setRange(offset, offset + sessionID.length, sessionID);
+    // offset += sessionID.length;
+
+    // // Encode cookie
+    // result[offset] = cookie.length;
+    // offset++;
+    // result.setRange(offset, offset + cookie.length, cookie);
+    // offset += cookie.length;
+
+    // // Encode cipher suite IDs
+    // writer.setUint16(offset, cipherSuiteIDs.length * 2, Endian.big);
+    // offset += 2;
+    // for (var id in cipherSuiteIDs) {
+    //   writer.setUint16(offset, id.toUint16(), Endian.big);
+    //   offset += 2;
+    // }
+
+    // // Encode compression method IDs
+    // result[offset] = compressionMethodIDs.length;
+    // offset++;
+    // result.setRange(
+    //     offset, offset + compressionMethodIDs.length, compressionMethodIDs);
+    // offset += compressionMethodIDs.length;
+
+    // // Encode extensions
+    // int extensionsLength = 0;
+    // extensions.forEach((key, value) {
+    //   extensionsLength += 4 + value.encode().length;
+    // });
+    // writer.setUint16(offset, extensionsLength, Endian.big);
+    // offset += 2;
+    // extensions.forEach((key, value) {
+    //   writer.setUint16(offset, key.toUint16(), Endian.big);
+    //   offset += 2;
+    //   Uint8List encodedExtension = value.encode();
+    //   writer.setUint16(offset, encodedExtension.length, Endian.big);
+    //   offset += 2;
+    //   result.setRange(
+    //       offset, offset + encodedExtension.length, encodedExtension);
+    //   offset += encodedExtension.length;
+    // });
+
     return Uint8List(0);
   }
 
@@ -83,7 +157,8 @@ class ClientHello {
         decodeCompressionMethodIDs(buf, offset, arrayLen);
     offset += 1 + compressionMethodIDs.length;
 
-    var extensions = decodeExtensionMap(buf, offset, arrayLen);
+    var (extensions, decodedOffset, err) =
+        decodeExtensionMap(buf, offset, arrayLen);
 
     return ClientHello(
       version: version,
@@ -92,7 +167,7 @@ class ClientHello {
       sessionID: sessionID,
       cipherSuiteIDs: cipherSuiteIDs,
       compressionMethodIDs: compressionMethodIDs,
-      extensions: extensions,
+      extensions: extensions!,
     );
   }
 }
@@ -118,8 +193,46 @@ Uint8List decodeCompressionMethodIDs(Uint8List buf, int offset, int arrayLen) {
   return buf.sublist(offset, offset + count);
 }
 
-Map<ExtensionType, Extension> decodeExtensionMap(
+(Map<ExtensionType, dynamic>?, int, Exception?) decodeExtensionMap(
     Uint8List buf, int offset, int arrayLen) {
   // Implement decoding logic for extensions
-  return {};
+  Map<ExtensionType, dynamic> result = {};
+  var length =
+      ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big);
+  offset += 2;
+  var offsetBackup = offset;
+  while (offset < offsetBackup + length) {
+    var extensionType = ExtensionType(
+        ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big));
+    offset += 2;
+    var extensionLength =
+        ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big);
+    offset += 2;
+    var extension;
+    print("Extension runtime type: $extensionType");
+    switch (extensionType.value) {
+      case 23:
+        //case ExtensionType.useExtendedMasterSecret:
+        extension = ExtUseExtendedMasterSecret();
+      case 14: //case ExtensionType.useSRTP:
+        extension = ExtUseSRTP(protectionProfiles: [], mki: Uint8List(0));
+      case 11: //case ExtensionType.supportedPointFormats:
+        extension = ExtSupportedPointFormats(pointFormats: []);
+      case 10: //case ExtensionType.supportedEllipticCurves:
+        extension = ExtSupportedEllipticCurves(curves: []);
+      default:
+        extension =
+            ExtUnknown(type: extensionType, dataLength: extensionLength);
+    }
+    if (extension != null) {
+      var err = extension.decode(extensionLength, buf, offset, arrayLen);
+
+      if (err != null) {
+        return (null, offset, err);
+      }
+      result[extensionType] = extension;
+    }
+    offset += extensionLength;
+  }
+  return (result, offset, null);
 }

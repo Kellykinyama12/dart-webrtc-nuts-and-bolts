@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/handshake_context.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake_header.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/record_header.dart';
 
@@ -24,6 +25,12 @@ class Uint24 {
   }
 
   Uint8List get bytes => _bytes;
+
+  @override
+  String toString() {
+    // TODO: implement toString
+    return "{Uint24: $_bytes}";
+  }
 }
 
 abstract class BaseDtlsMessage {
@@ -36,6 +43,22 @@ abstract class BaseDtlsMessage {
 
 abstract class BaseDtlsHandshakeMessage extends BaseDtlsMessage {
   HandshakeType getHandshakeType();
+}
+
+class DecodeDtlsMessageResult {
+  final RecordHeader? recordHeader;
+  final HandshakeHeader? handshakeHeader;
+  final dynamic message;
+  final int offset;
+
+  DecodeDtlsMessageResult(
+      this.recordHeader, this.handshakeHeader, this.message, this.offset);
+
+  @override
+  String toString() {
+    // TODO: implement toString
+    return "{record header: $recordHeader, handshake header: $handshakeHeader, message: $message}";
+  }
 }
 
 class IncompleteDtlsMessageException implements Exception {
@@ -69,34 +92,30 @@ bool isDtlsPacket(Uint8List buf, int offset, int arrayLen) {
   return arrayLen > 0 && buf[offset] >= 20 && buf[offset] <= 63;
 }
 
-(RecordHeader?, HandshakeHeader?, BaseDtlsMessage?, int?, Exception?)
-    decodeDtlsMessage(
-        //HandshakeContext context,
-        Uint8List buf,
-        int offset,
-        int arrayLen) {
+Future<DecodeDtlsMessageResult> decodeDtlsMessage(
+    HandshakeContext context, Uint8List buf, int offset, int arrayLen) async {
   //print("message: $buf");
 
   if (arrayLen < 1) {
-    return (null, null, null, offset, IncompleteDtlsMessageException());
+    return DecodeDtlsMessageResult(null, null, null, offset);
   }
   var (header, decodedOffset, err) = decodeRecordHeader(buf, offset, arrayLen);
 
   offset = decodedOffset;
 
   if (err != null) {
-    return (null, null, null, offset, err);
+    return DecodeDtlsMessageResult(null, null, null, offset);
   }
   print("Raw record header: ${header.raw}");
   print("encoded record header: ${header.encode()}");
 
-  if (header.epoch < 0) {
+  if (header.epoch < context.clientEpoch) {
     // Ignore incoming message
     offset += header.length;
-    return (null, null, null, offset, null);
+    return DecodeDtlsMessageResult(null, null, null, offset);
   }
 
-  //context.ClientEpoch = header.Epoch
+  context.clientEpoch = header.epoch;
 
   Uint8List? decryptedBytes;
   Uint8List? encryptedBytes;
@@ -120,26 +139,22 @@ bool isDtlsPacket(Uint8List buf, int offset, int arrayLen) {
             DecodeHandshakeHeader(buf, offset, arrayLen);
         offset = decodedOffset;
         if (err != null) {
-          return (null, null, null, offset, err);
+          return DecodeDtlsMessageResult(null, null, null, offset);
         }
         if (handshakeHeader.length.toUint32() !=
             handshakeHeader.fragmentLength.toUint32()) {
           // Ignore fragmented packets
           print("Ignore fragmented packets: ${header.contentType}");
-          return (
-            null,
-            null,
-            null,
-            offset + handshakeHeader.fragmentLength.toUint32(),
-            null
-          );
+          return DecodeDtlsMessageResult(null, null, null,
+              offset + handshakeHeader.fragmentLength.toUint32());
         }
         var result;
         (result, offset, err) =
             decodeHandshake(header, handshakeHeader, buf, offset, arrayLen);
         if (err != null) {
-          return (null, null, null, offset, err);
+          return DecodeDtlsMessageResult(null, null, null, offset);
         }
+        print("handshake: $result");
         // Uint8List	copyArray = make([]byte, offset-offsetBackup);
         // 	copy(copyArray, buf[offsetBackup:offset])
 
@@ -151,13 +166,13 @@ bool isDtlsPacket(Uint8List buf, int offset, int arrayLen) {
             0, offset - offsetBackup, buf.sublist(offsetBackup, offset));
         //context.HandshakeMessagesReceived[handshakeHeader.HandshakeType] = copyArray
 
-        return (header, handshakeHeader, result, offset, err);
+        return DecodeDtlsMessageResult(header, handshakeHeader, result, offset);
       } else {
         var (handshakeHeader, decryptedOffset, err) =
             DecodeHandshakeHeader(decryptedBytes, 0, decryptedBytes.length);
         offset = decryptedOffset = decryptedOffset;
         if (err != null) {
-          return (null, null, null, offset, err);
+          return DecodeDtlsMessageResult(null, null, null, offset);
         }
         var result;
         (result, _, err) = decodeHandshake(
@@ -175,7 +190,7 @@ bool isDtlsPacket(Uint8List buf, int offset, int arrayLen) {
 
         //context.HandshakeMessagesReceived[handshakeHeader.HandshakeType] = copyArray
 
-        return (header, handshakeHeader, result, offset, err);
+        return DecodeDtlsMessageResult(header, handshakeHeader, result, offset);
       }
     case ContentType.ChangeCipherSpec:
     // changeCipherSpec := &ChangeCipherSpec{}
@@ -197,7 +212,7 @@ bool isDtlsPacket(Uint8List buf, int offset, int arrayLen) {
     // return header, nil, alert, offset, nil
 
     default:
-      return (null, null, null, offset, UnknownDtlsContentTypeException());
+      return DecodeDtlsMessageResult(null, null, null, offset);
   }
-  return (null, null, null, null, null);
+  //return (null, null, null, null, null);
 }

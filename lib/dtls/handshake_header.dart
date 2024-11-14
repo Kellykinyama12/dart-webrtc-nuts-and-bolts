@@ -168,32 +168,32 @@ class HandshakeHeader extends BaseDtlsHandshakeMessage {
   // return result, offset, nil
 }
 
-(BaseDtlsMessage?, int, Exception?) decodeHandshake(RecordHeader header,
+(dynamic, int, Exception?) decodeHandshake(RecordHeader header,
     HandshakeHeader handshakeHeader, Uint8List buf, int offset, int arrayLen) {
   var result;
   switch (handshakeHeader.handshakeType) {
     case HandshakeType.ClientHello:
       result = ClientHello.decode(buf, offset, arrayLen);
     case HandshakeType.ServerHello:
-    result = ServerHello.decode(buf, offset, arrayLen);
+      result = ServerHello.decode(buf, offset, arrayLen);
     case HandshakeType.Certificate:
-    result = Certificate.decode(buf, offset, arrayLen);
+      result = Certificate.decode(buf, offset, arrayLen);
     case HandshakeType.ServerKeyExchange:
-  result = ServerKeyExchange.decode(buf, offset, arrayLen);
+      result = ServerKeyExchange.decode(buf, offset, arrayLen);
     case HandshakeType.CertificateRequest:
-  result = CertificateRequest.decode(buf, offset, arrayLen);
+      result = CertificateRequest.decode(buf, offset, arrayLen);
     case HandshakeType.ServerHelloDone:
-    result = ServerHelloDone.decode(buf, offset, arrayLen);
+      result = ServerHelloDone.decode(buf, offset, arrayLen);
     case HandshakeType.ClientKeyExchange:
-    result = ClientKeyExchange.decode(buf, offset, arrayLen);
+      result = ClientKeyExchange.decode(buf, offset, arrayLen);
     case HandshakeType.CertificateVerify:
-    result = CertificateVerify.decode(buf, offset, arrayLen);
+      result = CertificateVerify.decode(buf, offset, arrayLen);
     case HandshakeType.Finished:
-    result = Finished.decode(buf, offset, arrayLen);
+      result = Finished.decode(buf, offset, arrayLen);
     default:
       return (null, offset, UnknownDtlsContentTypeException());
   }
   var err;
-  (offset, err) = result.Decode(buf, offset, arrayLen);
+  //(offset, err) = result.Decode(buf, offset, arrayLen);
   return (result, offset, err);
 }

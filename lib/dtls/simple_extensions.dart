@@ -66,10 +66,11 @@ class ExtRenegotiationInfo implements Extension {
 }
 
 class ExtUseSRTP implements Extension {
-  List<SRTPProtectionProfile> protectionProfiles;
-  Uint8List mki;
+  late List<SRTPProtectionProfile> protectionProfiles;
+  late Uint8List mki;
 
   ExtUseSRTP({required this.protectionProfiles, required this.mki});
+  //ExtUseSRTP();
 
   @override
   ExtensionType get extensionType => ExtensionType.useSRTP;
@@ -119,9 +120,10 @@ class ExtUseSRTP implements Extension {
 }
 
 class ExtSupportedPointFormats implements Extension {
-  List<PointFormat> pointFormats;
+  late List<PointFormat> pointFormats;
 
   ExtSupportedPointFormats({required this.pointFormats});
+  //ExtSupportedPointFormats();
 
   @override
   ExtensionType get extensionType => ExtensionType.supportedPointFormats;
@@ -157,9 +159,10 @@ class ExtSupportedPointFormats implements Extension {
 }
 
 class ExtSupportedEllipticCurves implements Extension {
-  List<Curve> curves;
+  late List<Curve> curves;
 
   ExtSupportedEllipticCurves({required this.curves});
+  //ExtSupportedEllipticCurves();
 
   @override
   ExtensionType get extensionType => ExtensionType.supportedEllipticCurves;
