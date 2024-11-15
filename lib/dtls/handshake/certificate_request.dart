@@ -5,13 +5,13 @@ import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/algo_pair.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake_header.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/record_header.dart';
 
-class CertificateType {
-  final int value;
-  const CertificateType(this.value);
+// class CertificateType {
+//   final int value;
+//   const CertificateType(this.value);
 
-  @override
-  String toString() => 'CertificateType($value)';
-}
+//   @override
+//   String toString() => 'CertificateType($value)';
+// }
 
 class CertificateRequest {
   List<CertificateType> certificateTypes;

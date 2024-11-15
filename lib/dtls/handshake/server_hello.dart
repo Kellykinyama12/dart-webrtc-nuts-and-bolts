@@ -4,23 +4,23 @@ import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake_header.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/record_header.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/simple_extensions.dart';
 
-class DtlsVersion {
-  final int major;
-  final int minor;
+// class DtlsVersion {
+//   final int major;
+//   final int minor;
 
-  DtlsVersion(this.major, this.minor);
+//   DtlsVersion(this.major, this.minor);
 
-  int toUint16() {
-    return (major << 8) | minor;
-  }
+//   int toUint16() {
+//     return (major << 8) | minor;
+//   }
 
-  factory DtlsVersion.fromUint16(int value) {
-    return DtlsVersion((value >> 8) & 0xFF, value & 0xFF);
-  }
+//   factory DtlsVersion.fromUint16(int value) {
+//     return DtlsVersion((value >> 8) & 0xFF, value & 0xFF);
+//   }
 
-  @override
-  String toString() => '$major.$minor';
-}
+//   @override
+//   String toString() => '$major.$minor';
+// }
 
 class Random {
   final Uint8List randomBytes;

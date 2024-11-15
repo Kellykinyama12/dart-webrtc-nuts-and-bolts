@@ -6,6 +6,7 @@ import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/dtls_state.dart';
 //import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/handshake_context.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/server_hello.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake_header.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/record_header.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/simple_extensions.dart';
 
 enum Flight {
@@ -30,12 +31,11 @@ class HandshakeContext {
 
   late DTLSState dtlsState;
   //OnDTLSStateChangeHandler func(DTLSState)
- late Uint8List sessionId;
- late  int cipherSuiteId;
+  late Uint8List sessionId;
+  late int cipherSuiteId;
   late int compressionMethodId;
   late Map<ExtensionType, Extension> extensions;
-   late List<PointFormat> pointFormats;
-
+  late List<PointFormat> pointFormats;
 
   late DtlsVersion protocolVersion;
   late CipherSuite cipherSuite;
