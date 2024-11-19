@@ -67,6 +67,16 @@ class RecordHeader {
     return result;
   }
 
+  @override
+  String toString() {
+    // TODO: implement toString
+    return ("""{ContentType: ${contentType},
+  Version: [${version.major},${version.minor}],
+Epoch: ${epoch},
+  SequenceNumber: ${sequenceNumber}
+  Length: ${length}}""");
+  }
+
   // Add methods for encoding/decoding if needed
 }
 
@@ -95,11 +105,11 @@ class RecordHeader {
       ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big);
   offset += 2;
 
-  print('ContentType: ${contentType}');
-  print('Version: ${version.major}.${version.minor}');
-  print('Epoch: ${epoch}');
-  print('SequenceNumber: ${sequenceNumber}');
-  print('Length: ${length}');
+  // print('ContentType: ${contentType}');
+  // print('Version: ${version.major}.${version.minor}');
+  // print('Epoch: ${epoch}');
+  // print('SequenceNumber: ${sequenceNumber}');
+  // print('Length: ${length}');
 
   return (
     RecordHeader(

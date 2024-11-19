@@ -66,10 +66,14 @@ class HashAlgorithm {
   final int value;
   const HashAlgorithm(this.value);
 
-  Uint8List execute(Uint8List input) {
+  Uint8List execute(List<Uint8List> input) {
+    BytesBuilder bb = BytesBuilder();
+    input.forEach((bytes) {
+      bb.add(bytes);
+    });
     switch (value) {
       case 4: // HashAlgorithmSHA256
-        var digest = sha256.convert(input);
+        var digest = sha256.convert(bb.toBytes());
         return Uint8List.fromList(digest.bytes);
       default:
         throw ArgumentError('Unsupported hash algorithm');
@@ -170,7 +174,8 @@ class CipherSuite {
   }
 }
 
-const CipherSuiteID cipherSuiteID_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 = CipherSuiteID(0xc02b);
+const CipherSuiteID cipherSuiteID_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 =
+    CipherSuiteID(0xc02b);
 const CurveType curveTypeNamedCurve = CurveType(0x03);
 const Curve curveX25519 = Curve(0x001d);
 const PointFormat pointFormatUncompressed = PointFormat(0);
@@ -179,7 +184,8 @@ const SignatureAlgorithm signatureAlgorithmECDSA = SignatureAlgorithm(3);
 const CertificateType certificateTypeECDSASign = CertificateType(64);
 const KeyExchangeAlgorithm keyExchangeAlgorithmNone = KeyExchangeAlgorithm(0);
 const KeyExchangeAlgorithm keyExchangeAlgorithmECDHE = KeyExchangeAlgorithm(1);
-const SRTPProtectionProfile srtpProtectionProfile_AEAD_AES_128_GCM = SRTPProtectionProfile(0x0007);
+const SRTPProtectionProfile srtpProtectionProfile_AEAD_AES_128_GCM =
+    SRTPProtectionProfile(0x0007);
 
 final Map<Curve, bool> supportedCurves = {
   curveX25519: true,

@@ -7,6 +7,7 @@ import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/certificate_verify.dar
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/client_hello.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/client_key_exchange.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/finished.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/hello_verify_request.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/server_hello.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/server_hello_done.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/server_key_exchange.dart';
@@ -109,9 +110,30 @@ class HandshakeHeader extends BaseDtlsHandshakeMessage {
   }
 
   @override
-  List<int> encode() {
-    // Implement encoding logic here
-    return [];
+  // List<int> encode() {
+  //   // Implement encoding logic here
+  //   return [];
+  // }
+  Uint8List encode() {
+    final result = Uint8List(12);
+    final byteData = ByteData.sublistView(result);
+
+    // Set handshake type (1 byte)
+    result[0] = handshakeType.value;
+
+    // Copy length (3 bytes)
+    result.setRange(1, 4, length.bytes);
+
+    // Set message sequence (2 bytes, big-endian)
+    byteData.setUint16(4, messageSequence, Endian.big);
+
+    // Copy fragment offset (3 bytes)
+    result.setRange(6, 9, fragmentOffset.bytes);
+
+    // Copy fragment length (3 bytes)
+    result.setRange(9, 12, fragmentLength.bytes);
+
+    return result;
   }
 
   @override
@@ -130,7 +152,7 @@ class HandshakeHeader extends BaseDtlsHandshakeMessage {
     Uint8List buf, int offset, int arrayLen,
     {Uint8List? data}) {
   //result := new(HandshakeHeader)
-
+  //print("int Handshake type: ${buf[offset]}");
   HandshakeType handshakeType = HandshakeType.fromInt(buf[offset]);
   offset++;
   Uint24 length = Uint24.fromBytes(buf.sublist(offset, offset + 3));
@@ -147,11 +169,11 @@ class HandshakeHeader extends BaseDtlsHandshakeMessage {
   Uint24 fragmentLength = Uint24.fromBytes(buf.sublist(offset, offset + 3));
   offset += 3;
 
-  print('handshakeType: ${handshakeType}');
-  print('Length: ${length}');
-  print('messageSequence: $messageSequence');
-  print('fragmentOffset: $fragmentOffset');
-  print('fragmentLength: $fragmentLength');
+  // print('handshakeType: ${handshakeType}');
+  // print('Length: ${length}');
+  // print('messageSequence: $messageSequence');
+  // print('fragmentOffset: $fragmentOffset');
+  // print('fragmentLength: $fragmentLength');
 
   return (
     HandshakeHeader(
@@ -190,6 +212,9 @@ class HandshakeHeader extends BaseDtlsHandshakeMessage {
       result = CertificateVerify.decode(buf, offset, arrayLen);
     case HandshakeType.Finished:
       result = Finished.decode(buf, offset, arrayLen);
+    case HandshakeType.HelloVerifyRequest:
+      result = HelloVerifyRequest.decode(buf, offset, arrayLen);
+
     default:
       return (null, offset, UnknownDtlsContentTypeException());
   }

@@ -209,7 +209,7 @@ Uint8List decodeCompressionMethodIDs(Uint8List buf, int offset, int arrayLen) {
         ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big);
     offset += 2;
     var extension;
-    print("Extension runtime type: $extensionType");
+    //print("Extension runtime type: $extensionType");
     switch (extensionType.value) {
       case 23:
         //case ExtensionType.useExtendedMasterSecret:

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/alert.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/handshake_context.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake_header.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/record_header.dart';
@@ -106,8 +107,8 @@ Future<DecodeDtlsMessageResult> decodeDtlsMessage(
   if (err != null) {
     return DecodeDtlsMessageResult(null, null, null, offset);
   }
-  print("Raw record header: ${header.raw}");
-  print("encoded record header: ${header.encode()}");
+  //print("Raw record header: ${header.raw}");
+  //print("encoded record header: ${header.encode()}");
 
   if (header.epoch < context.clientEpoch) {
     // Ignore incoming message
@@ -144,7 +145,7 @@ Future<DecodeDtlsMessageResult> decodeDtlsMessage(
         if (handshakeHeader.length.toUint32() !=
             handshakeHeader.fragmentLength.toUint32()) {
           // Ignore fragmented packets
-          print("Ignore fragmented packets: ${header.contentType}");
+          //print("Handshake header content type: ${header.contentType}");
           return DecodeDtlsMessageResult(null, null, null,
               offset + handshakeHeader.fragmentLength.toUint32());
         }
@@ -154,7 +155,7 @@ Future<DecodeDtlsMessageResult> decodeDtlsMessage(
         if (err != null) {
           return DecodeDtlsMessageResult(null, null, null, offset);
         }
-        print("handshake: $result");
+        //print("handshake: $result");
         // Uint8List	copyArray = make([]byte, offset-offsetBackup);
         // 	copy(copyArray, buf[offsetBackup:offset])
 
@@ -200,7 +201,17 @@ Future<DecodeDtlsMessageResult> decodeDtlsMessage(
     // }
     // return header, nil, changeCipherSpec, offset, nil
     case ContentType.Alert:
-    // alert := &Alert{}
+      Alert? alert; // = Alert();
+      if (decryptedBytes == null) {
+        var (alert, decodedOffset) = Alert.decode(buf, offset, arrayLen);
+      } else {
+        (alert, _) = Alert.decode(decryptedBytes, 0, decryptedBytes.length);
+      }
+
+      //context.serverSequenceNumber = 0;
+      //context.flight = Flight.Flight0;
+      return DecodeDtlsMessageResult(header, null, alert, offset);
+    // return DecodeDtlsMessageResult(header, handshakeHeader, result, offset);
     // if decryptedBytes == nil {
     // 	offset, err = alert.Decode(buf, offset, arrayLen)
     // } else {
@@ -212,6 +223,7 @@ Future<DecodeDtlsMessageResult> decodeDtlsMessage(
     // return header, nil, alert, offset, nil
 
     default:
+      print("Unhandled content type: ${header.contentType}");
       return DecodeDtlsMessageResult(null, null, null, offset);
   }
   //return (null, null, null, null, null);

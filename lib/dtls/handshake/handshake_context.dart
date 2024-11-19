@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dart_webrtc_nuts_and_bolts/dtls/cipher_suites.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/crypto_gcm.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/dtls_state.dart';
 //import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/handshake_context.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/server_hello.dart';
@@ -62,21 +63,27 @@ class HandshakeContext {
   Map<HandshakeType, Uint8List> HandshakeMessagesSent =
       {}; //     map[HandshakeType][]byte
 
-  late int clientEpoch; //                   uint16
+  int clientEpoch = 0; //                   uint16
   late int clientSequenceNumber; //          uint16
-  late int ServerEpoch; //                   uint16
-  late int serverSequenceNumber; //          uint16
-  late int serverHandshakeSequenceNumber; // uint16
+  int ServerEpoch = 0; //                   uint16
+  int serverSequenceNumber = 0; //          uint16
+  int serverHandshakeSequenceNumber = 0; // uint16
 
   late Uint8List Cookie; // []byte
 //	Flight Flight
 
   late Uint8List KeyingMaterialCache; // []byte
 
+  late GCM gcm;
+
   HandshakeContext(
       {required this.conn, required this.addr, required this.port});
 
-  void increaseSeverSequenceNumber() {
+  void increaseServerSequenceNumber() {
     serverSequenceNumber++;
+  }
+
+  void increaseServerHandshakeSequence() {
+    serverHandshakeSequenceNumber++;
   }
 }

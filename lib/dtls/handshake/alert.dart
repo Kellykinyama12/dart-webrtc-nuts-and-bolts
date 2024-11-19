@@ -126,13 +126,14 @@ class Alert {
     return 'Alert ${level.toString()} ${description.toString()}';
   }
 
-  int decode(Uint8List buf, int offset) {
-    level = AlertLevel.values.firstWhere((e) => e.value == buf[offset]);
+  static (Alert, int) decode(Uint8List buf, int offset, int arrayLen) {
+    AlertLevel level =
+        AlertLevel.values.firstWhere((e) => e.value == buf[offset]);
     offset++;
-    description =
+    AlertDescription description =
         AlertDescription.values.firstWhere((e) => e.value == buf[offset]);
     offset++;
-    return offset;
+    return (Alert(level: level, description: description), offset);
   }
 
   Uint8List encode() {
