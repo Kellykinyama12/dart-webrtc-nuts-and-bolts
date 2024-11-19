@@ -421,8 +421,8 @@ class HandshakeManager {
       version: context.protocolVersion,
       random: context.serverRandom,
       sessionId: context.sessionId,
-      cipherSuiteId: context.cipherSuiteId,
-      compressionMethodId: context.compressionMethodId,
+      cipherSuiteId: [context.cipherSuiteId],
+      compressionMethodIDs: context.compressionMethodId,
       extensions: context.extensions,
     );
   }

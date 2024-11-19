@@ -19,6 +19,15 @@ Uint8List uint48ToUint8List(int value) {
   return buffer.buffer.asUint8List();
 }
 
+Uint8List convertTo4Bytes(int millisecondsSinceEpoch) {
+  final byteData = ByteData(4);
+  
+  // Ensure that the milliseconds fit within the 4-byte range (0 to 4GB)
+  byteData.setUint32(0, millisecondsSinceEpoch & 0xFFFFFFFF, Endian.big);
+  
+  return byteData.buffer.asUint8List();
+}
+
 // void main() {
 //   Uint8List bytes = Uint8List.fromList([0x01, 0x02, 0x03, 0x04, 0x05, 0x06]);
 //   int value = uint8ListToUint(bytes);

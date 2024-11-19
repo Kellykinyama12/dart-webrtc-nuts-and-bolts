@@ -1,9 +1,12 @@
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/cipher_suites.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/dtls_random.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/client_hello.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake_header.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/record_header.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/simple_extensions.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/utils.dart';
 
 // class DtlsVersion {
 //   final int major;
@@ -23,31 +26,31 @@ import 'package:dart_webrtc_nuts_and_bolts/dtls/simple_extensions.dart';
 //   String toString() => '$major.$minor';
 // }
 
-class Random {
-  final Uint8List randomBytes;
-  Random(this.randomBytes);
+// class Random {
+//   final Uint8List randomBytes;
+//   Random(this.randomBytes);
 
-  Uint8List encode() => randomBytes;
+//   Uint8List encode() => randomBytes;
 
-  static Random decode(Uint8List buf, int offset) {
-    return Random(Uint8List.fromList(buf.sublist(offset, offset + 32)));
-  }
-}
+//   static Random decode(Uint8List buf, int offset) {
+//     return Random(Uint8List.fromList(buf.sublist(offset, offset + 32)));
+//   }
+// }
 
 class ServerHello {
   DtlsVersion version;
   Random random;
   Uint8List sessionId;
-  int cipherSuiteId;
-  int compressionMethodId;
-  Map<ExtensionType, dynamic>? extensions;
+  List<CipherSuiteID> cipherSuiteId;
+  Uint8List compressionMethodIDs;
+  Map<ExtensionType, dynamic> extensions;
 
   ServerHello({
     required this.version,
     required this.random,
     required this.sessionId,
     required this.cipherSuiteId,
-    required this.compressionMethodId,
+    required this.compressionMethodIDs,
     required this.extensions,
   });
 
@@ -56,7 +59,7 @@ class ServerHello {
     var extensionsStr =
         extensions!.values.map((ext) => ext.toString()).join('\n');
     return '[ServerHello] Ver: $version, SessionID: ${sessionId.length}\n'
-        'Cipher Suite ID: 0x${cipherSuiteId.toRadixString(16)}\n'
+        'Cipher Suite ID: $cipherSuiteId\n'
         'Extensions:\n$extensionsStr';
   }
 
@@ -68,55 +71,137 @@ class ServerHello {
     return HandshakeType.ServerHello;
   }
 
+  Uint8List encode() {
+    final buffer = BytesBuilder();
+
+    // Encode the version (2 bytes)
+    buffer.addByte(version.major);
+    buffer.addByte(version.minor);
+
+    // Encode the random (32 bytes)
+    // buffer.add(convertTo4Bytes(
+    //     clientHello.random.gmtUnixTime.millisecondsSinceEpoch ~/ 1000));
+    buffer.add(random.encode());
+
+    // Encode the session ID (1 byte for length, then the session ID)
+    final sessionIDLength = sessionId.length;
+    buffer.addByte(sessionIDLength);
+    buffer.add(sessionId);
+
+    // Encode the cookie (1 byte for length, then the cookie)
+    //final cookieLength = cookie;
+    //buffer.addByte(cookieLength);
+    //buffer.add(cookie);
+
+    // Encode the cipher suites (2 bytes for the length, then the cipher suites)
+    final cipherSuiteIDs = encodeCipherSuiteIDs(cipherSuiteId);
+    buffer.add(Uint8List.fromList(
+        [cipherSuiteIDs.length ~/ 2])); // Length of cipher suites list
+    buffer.add(cipherSuiteIDs);
+
+    // Encode the compression methods (1 byte for the length, then the methods)
+    final encodedCompressionMethodIDs =
+        encodeCompressionMethodIDs(compressionMethodIDs);
+    buffer.addByte(encodedCompressionMethodIDs.length);
+    buffer.add(encodedCompressionMethodIDs);
+
+    // Encode the extensions (length of extensions and the extensions themselves)
+    final extensionsEncoded = encodeExtensionMap(extensions!);
+    buffer.add(Uint8List.fromList(
+        [extensionsEncoded.length ~/ 2])); // Length of extensions
+    buffer.add(extensionsEncoded);
+
+    // Return the final encoded ClientHello message
+    return buffer.toBytes();
+  }
+
   static (ServerHello, int, Exception?) decode(
       Uint8List buf, int offset, int arrayLen) {
-    DtlsVersion version =
-        DtlsVersion.fromUint16((buf[offset] << 8) | buf[offset + 1]);
+    if (arrayLen < offset + 2) {
+      throw ArgumentError(
+          'Buffer too small to contain a valid ClientHello structure');
+    }
+
+    var version = DtlsVersion.fromUint16(
+        ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big));
     offset += 2;
 
-    Random random = Random.decode(buf, offset);
-    offset += 32;
+    var random = decodeRandom(buf, offset, arrayLen);
+    offset += 4 + randomBytesLength;
 
-    var sessionIdLength = buf[offset];
+    var sessionIDLength = buf[offset];
     offset++;
-    Uint8List sessionId =
-        Uint8List.fromList(buf.sublist(offset, offset + sessionIdLength));
-    offset += sessionIdLength;
+    var sessionID = buf.sublist(offset, offset + sessionIDLength);
+    offset += sessionIDLength;
 
-    int cipherSuiteId = (buf[offset] << 8) | buf[offset + 1];
-    offset += 2;
+    // var cookieLength = buf[offset];
+    //offset++;
+    //var cookie = buf.sublist(offset, offset + cookieLength);
+    //offset += cookieLength;
 
-    int compressionMethodId = buf[offset];
-    offset++;
+    var cipherSuiteIDs = decodeCipherSuiteIDs(buf, offset, arrayLen);
+    offset += 2 + cipherSuiteIDs.length * 2;
+
+    var compressionMethodIDs =
+        decodeCompressionMethodIDs(buf, offset, arrayLen);
+    offset += 1 + compressionMethodIDs.length;
 
     var (extensions, decodedOffset, err) =
         decodeExtensionMap(buf, offset, arrayLen);
+
     return (
       ServerHello(
-          version: version,
-          random: random,
-          sessionId: sessionId,
-          cipherSuiteId: cipherSuiteId,
-          compressionMethodId: compressionMethodId,
-          extensions: extensions),
+        version: version,
+        random: random,
+        //cookie: cookie,
+        sessionId: sessionID,
+        cipherSuiteId: cipherSuiteIDs,
+        compressionMethodIDs: compressionMethodIDs,
+        extensions: extensions!,
+      ),
       offset,
       null
     );
   }
+}
 
-  Uint8List encodeExtensionMap(Map<int, dynamic> extensions) {
-    final buffer = BytesBuilder();
-    extensions.forEach((type, ext) {
-      buffer.addByte(type >> 8);
-      buffer.addByte(type & 0xFF);
+  // static (ServerHello, int, Exception?) decode(
+  //     Uint8List buf, int offset, int arrayLen) {
+  //   DtlsVersion version =
+  //       DtlsVersion.fromUint16((buf[offset] << 8) | buf[offset + 1]);
+  //   offset += 2;
 
-      buffer.addByte(ext.data.length >> 8);
-      buffer.addByte(ext.data.length & 0xFF);
+  //   Random random = Random.decode(buf, offset);
+  //   offset += 32;
 
-      buffer.add(ext.data);
-    });
-    return buffer.toBytes();
-  }
+  //   var sessionIdLength = buf[offset];
+  //   offset++;
+  //   Uint8List sessionId =
+  //       Uint8List.fromList(buf.sublist(offset, offset + sessionIdLength));
+  //   offset += sessionIdLength;
+
+  //   int cipherSuiteId = (buf[offset] << 8) | buf[offset + 1];
+  //   offset += 2;
+
+  //   int compressionMethodId = buf[offset];
+  //   offset++;
+
+  //   var (decodedExtensions, decodedOffset, err) =
+  //       decodeExtensionMap(buf, offset, arrayLen);
+  //   return (
+  //     ServerHello(
+  //         version: version,
+  //         random: random,
+  //         sessionId: sessionId,
+  //         cipherSuiteId: cipherSuiteId,
+  //         compressionMethodId: compressionMethodId,
+  //         extensions: decodedExtensions),
+  //     offset,
+  //     null
+  //   );
+  //}
+
+ 
 
   // Uint8List encode() {
   //   var result = Uint8List(2 + 32 + 1 + sessionId.length + 2 + 1);
@@ -132,7 +217,7 @@ class ServerHello {
   //   var encodedExtensions = encodeExtensionMap(extensions);
   //   return Uint8List.fromList(result + encodedExtensions);
   // }
-}
+//}
 
 // Uint8List encodeExtensionMap(Map<ExtensionType, Extension> extensions) {
 //   // var encoded = <int>[];
@@ -141,67 +226,7 @@ class ServerHello {
 //   return Uint8List.fromList(extensions);
 // }
 
-List<CipherSuiteID> decodeCipherSuiteIDs(
-    Uint8List buf, int offset, int arrayLen) {
-  var length =
-      ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big);
-  var count = length ~/ 2;
-  offset += 2;
-  var result = List<CipherSuiteID>.generate(count, (i) {
-    var id = CipherSuiteID(
-        ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big));
-    offset += 2;
-    return id;
-  });
-  return result;
-}
 
-Uint8List decodeCompressionMethodIDs(Uint8List buf, int offset, int arrayLen) {
-  var count = buf[offset];
-  offset++;
-  return buf.sublist(offset, offset + count);
-}
 
-(Map<ExtensionType, dynamic>?, int, Exception?) decodeExtensionMap(
-    Uint8List buf, int offset, int arrayLen) {
-  // Implement decoding logic for extensions
-  Map<ExtensionType, dynamic> result = {};
-  var length =
-      ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big);
-  offset += 2;
-  var offsetBackup = offset;
-  while (offset < offsetBackup + length) {
-    var extensionType = ExtensionType(
-        ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big));
-    offset += 2;
-    var extensionLength =
-        ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big);
-    offset += 2;
-    var extension;
-    //print("Extension runtime type: $extensionType");
-    switch (extensionType.value) {
-      case 23:
-        //case ExtensionType.useExtendedMasterSecret:
-        extension = ExtUseExtendedMasterSecret();
-      case 14: //case ExtensionType.useSRTP:
-        extension = ExtUseSRTP(protectionProfiles: [], mki: Uint8List(0));
-      case 11: //case ExtensionType.supportedPointFormats:
-        extension = ExtSupportedPointFormats(pointFormats: []);
-      case 10: //case ExtensionType.supportedEllipticCurves:
-        extension = ExtSupportedEllipticCurves(curves: []);
-      default:
-        extension =
-            ExtUnknown(type: extensionType, dataLength: extensionLength);
-    }
-    if (extension != null) {
-      var err = extension.decode(extensionLength, buf, offset, arrayLen);
 
-      if (err != null) {
-        return (null, offset, err);
-      }
-      result[extensionType] = extension;
-    }
-    offset += extensionLength;
-  }
-  return (result, offset, null);
-}
+

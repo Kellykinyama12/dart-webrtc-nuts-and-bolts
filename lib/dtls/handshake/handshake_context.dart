@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dart_webrtc_nuts_and_bolts/dtls/cipher_suites.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/crypto_gcm.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/dtls_random.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/dtls_state.dart';
 //import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/handshake_context.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/server_hello.dart';
@@ -33,16 +34,16 @@ class HandshakeContext {
   late DTLSState dtlsState;
   //OnDTLSStateChangeHandler func(DTLSState)
   late Uint8List sessionId;
-  late int cipherSuiteId;
-  late int compressionMethodId;
+  late CipherSuiteID cipherSuiteId;
+  late Uint8List compressionMethodId;
   late Map<ExtensionType, Extension> extensions;
-  late List<PointFormat> pointFormats;
+  late List<PointFormat> pointFormats = [];
 
   late DtlsVersion protocolVersion;
   late CipherSuite cipherSuite;
   late CurveType curveType;
   late Curve curve;
-  late SRTPProtectionProfile srtpProtectionProfile;
+  SRTPProtectionProfile srtpProtectionProfile = SRTPProtectionProfile(0x0007);
   late Random clientRandom;
   late Uint8List ClientKeyExchangePublic; // []byte
 

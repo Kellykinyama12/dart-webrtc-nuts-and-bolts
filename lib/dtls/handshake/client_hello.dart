@@ -7,6 +7,7 @@ import 'package:dart_webrtc_nuts_and_bolts/dtls/record_header.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/simple_extensions.dart';
 
 import 'package:convert/convert.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/utils.dart';
 
 class ClientHello {
   DtlsVersion version;
@@ -48,83 +49,48 @@ class ClientHello {
     return HandshakeType.ClientHello;
   }
 
-  Uint8List encode() {
-    // Calculate the length of the encoded message
-    // int length = 2 +
-    //     32 +
-    //     1 +
-    //     sessionID.length +
-    //     1 +
-    //     cookie.length +
-    //     2 +
-    //     (cipherSuiteIDs.length * 2) +
-    //     1 +
-    //     compressionMethodIDs.length +
-    //     2;
-    // extensions.forEach((key, value) {
-    //   length += 4 + value.encode().length;
-    // });
+  Uint8List encode(ClientHello clientHello) {
+    final buffer = BytesBuilder();
 
-    // // Create a buffer to hold the encoded message
-    // Uint8List result = Uint8List(length);
-    // ByteData writer = ByteData.sublistView(result);
+    // Encode the version (2 bytes)
+    buffer.addByte(clientHello.version.major);
+    buffer.addByte(clientHello.version.minor);
 
-    // int offset = 0;
+    // Encode the random (32 bytes)
+    buffer.add(
+        convertTo4Bytes(clientHello.random.gmtUnixTime.millisecondsSinceEpoch));
+    buffer.add(clientHello.random.randomBytes);
 
-    // // Encode version
-    // writer.setUint16(offset, version.toUint16(), Endian.big);
-    // offset += 2;
+    // Encode the session ID (1 byte for length, then the session ID)
+    final sessionIDLength = clientHello.sessionID.length;
+    buffer.addByte(sessionIDLength);
+    buffer.add(clientHello.sessionID);
 
-    // // Encode random
-    // result.setRange(offset, offset + 32, random.bytes);
-    // offset += 32;
+    // Encode the cookie (1 byte for length, then the cookie)
+    final cookieLength = clientHello.cookie.length;
+    buffer.addByte(cookieLength);
+    buffer.add(clientHello.cookie);
 
-    // // Encode session ID
-    // result[offset] = sessionID.length;
-    // offset++;
-    // result.setRange(offset, offset + sessionID.length, sessionID);
-    // offset += sessionID.length;
+    // Encode the cipher suites (2 bytes for the length, then the cipher suites)
+    final cipherSuiteIDs = encodeCipherSuiteIDs(clientHello.cipherSuiteIDs);
+    buffer.add(Uint8List.fromList(
+        [cipherSuiteIDs.length ~/ 2])); // Length of cipher suites list
+    buffer.add(cipherSuiteIDs);
 
-    // // Encode cookie
-    // result[offset] = cookie.length;
-    // offset++;
-    // result.setRange(offset, offset + cookie.length, cookie);
-    // offset += cookie.length;
+    // Encode the compression methods (1 byte for the length, then the methods)
+    final compressionMethodIDs =
+        encodeCompressionMethodIDs(clientHello.compressionMethodIDs);
+    buffer.addByte(compressionMethodIDs.length);
+    buffer.add(compressionMethodIDs);
 
-    // // Encode cipher suite IDs
-    // writer.setUint16(offset, cipherSuiteIDs.length * 2, Endian.big);
-    // offset += 2;
-    // for (var id in cipherSuiteIDs) {
-    //   writer.setUint16(offset, id.toUint16(), Endian.big);
-    //   offset += 2;
-    // }
+    // Encode the extensions (length of extensions and the extensions themselves)
+    final extensionsEncoded = encodeExtensionMap(clientHello.extensions);
+    buffer.add(Uint8List.fromList(
+        [extensionsEncoded.length ~/ 2])); // Length of extensions
+    buffer.add(extensionsEncoded);
 
-    // // Encode compression method IDs
-    // result[offset] = compressionMethodIDs.length;
-    // offset++;
-    // result.setRange(
-    //     offset, offset + compressionMethodIDs.length, compressionMethodIDs);
-    // offset += compressionMethodIDs.length;
-
-    // // Encode extensions
-    // int extensionsLength = 0;
-    // extensions.forEach((key, value) {
-    //   extensionsLength += 4 + value.encode().length;
-    // });
-    // writer.setUint16(offset, extensionsLength, Endian.big);
-    // offset += 2;
-    // extensions.forEach((key, value) {
-    //   writer.setUint16(offset, key.toUint16(), Endian.big);
-    //   offset += 2;
-    //   Uint8List encodedExtension = value.encode();
-    //   writer.setUint16(offset, encodedExtension.length, Endian.big);
-    //   offset += 2;
-    //   result.setRange(
-    //       offset, offset + encodedExtension.length, encodedExtension);
-    //   offset += encodedExtension.length;
-    // });
-
-    return Uint8List(0);
+    // Return the final encoded ClientHello message
+    return buffer.toBytes();
   }
 
   static ClientHello decode(Uint8List buf, int offset, int arrayLen) {
@@ -187,10 +153,40 @@ List<CipherSuiteID> decodeCipherSuiteIDs(
   return result;
 }
 
+Uint8List encodeCipherSuiteIDs(List<CipherSuiteID> cipherSuites) {
+  final buffer = BytesBuilder();
+
+  // First, encode the length of the cipher suites (2 bytes)
+  final length = cipherSuites.length * 2; // Each CipherSuiteID is 2 bytes
+  final lengthBytes = ByteData(2)..setUint16(0, length, Endian.big);
+  buffer.add(lengthBytes.buffer.asUint8List());
+
+  // Then, encode each CipherSuiteID (2 bytes each)
+  for (var cipherSuite in cipherSuites) {
+    final idBytes = ByteData(2)..setUint16(0, cipherSuite.value, Endian.big);
+    buffer.add(idBytes.buffer.asUint8List());
+  }
+
+  return buffer.toBytes();
+}
+
 Uint8List decodeCompressionMethodIDs(Uint8List buf, int offset, int arrayLen) {
   var count = buf[offset];
   offset++;
   return buf.sublist(offset, offset + count);
+}
+
+Uint8List encodeCompressionMethodIDs(Uint8List compressionMethods) {
+  final buffer = BytesBuilder();
+
+  // First, encode the count of compression methods (1 byte)
+  final count = compressionMethods.length;
+  buffer.addByte(count);
+
+  // Then, add the compression method IDs (each 1 byte)
+  buffer.add(compressionMethods);
+
+  return buffer.toBytes();
 }
 
 (Map<ExtensionType, dynamic>?, int, Exception?) decodeExtensionMap(
@@ -235,4 +231,60 @@ Uint8List decodeCompressionMethodIDs(Uint8List buf, int offset, int arrayLen) {
     offset += extensionLength;
   }
   return (result, offset, null);
+}
+
+Uint8List encodeExtensionMap(Map<ExtensionType, dynamic> extensions) {
+  final buffer = BytesBuilder();
+
+  // Calculate the total length of all extensions to be encoded
+  int totalLength = 0;
+  List<List<int>> encodedExtensions = [];
+
+  // Iterate over each extension
+  extensions.forEach((extensionType, extension) {
+    // Encode the extension type (2 bytes)
+    final extensionTypeBytes = ByteData(2)
+      ..setUint16(0, extensionType.value, Endian.big);
+
+    // Encode the extension data
+    Uint8List extensionData;
+    if (extension is ExtUseExtendedMasterSecret) {
+      extensionData = extension.encode();
+    } else if (extension is ExtUseSRTP) {
+      extensionData = extension.encode();
+    } else if (extension is ExtSupportedPointFormats) {
+      extensionData = extension.encode();
+    } else if (extension is ExtSupportedEllipticCurves) {
+      extensionData = extension.encode();
+    } else if (extension is ExtUnknown) {
+      extensionData = extension.encode();
+    } else {
+      throw Exception("Unknown extension type.");
+    }
+
+    // Extension length (2 bytes)
+    final extensionLengthBytes = ByteData(2)
+      ..setUint16(0, extensionData.length, Endian.big);
+
+    // Add the encoded data for this extension to the list
+    encodedExtensions.add(extensionTypeBytes.buffer.asUint8List());
+    encodedExtensions.add(extensionLengthBytes.buffer.asUint8List());
+    encodedExtensions.add(extensionData);
+
+    // Accumulate total length
+    totalLength += 2 +
+        2 +
+        extensionData.length; // 2 for type, 2 for length, and the data length
+  });
+
+  // First, encode the total length of the extensions (2 bytes)
+  final lengthBytes = ByteData(2)..setUint16(0, totalLength, Endian.big);
+  buffer.add(lengthBytes.buffer.asUint8List());
+
+  // Then, encode each extension (type + length + data)
+  for (var extension in encodedExtensions) {
+    buffer.add(extension);
+  }
+
+  return buffer.toBytes();
 }

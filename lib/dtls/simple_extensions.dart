@@ -271,68 +271,68 @@ class ExtUnknown implements Extension {
 //   }
 // }
 
-Map<ExtensionType, Extension> decodeExtensionMap(
-    Uint8List buf, int offset, int arrayLen) {
-  final result = <ExtensionType, Extension>{};
-  final length =
-      ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big);
-  offset += 2;
-  final offsetBackup = offset;
+// Map<ExtensionType, Extension> decodeExtensionMap(
+//     Uint8List buf, int offset, int arrayLen) {
+//   final result = <ExtensionType, Extension>{};
+//   final length =
+//       ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big);
+//   offset += 2;
+//   final offsetBackup = offset;
 
-  while (offset < offsetBackup + length) {
-    final extensionType = ExtensionType(
-        ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big));
-    offset += 2;
-    final extensionLength =
-        ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big);
-    offset += 2;
+//   while (offset < offsetBackup + length) {
+//     final extensionType = ExtensionType(
+//         ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big));
+//     offset += 2;
+//     final extensionLength =
+//         ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big);
+//     offset += 2;
 
-    Extension extension;
-    switch (extensionType.value) {
-      case 23:
-        extension = ExtUseExtendedMasterSecret();
-        break;
-      case 14:
-        extension = ExtUseSRTP(protectionProfiles: [], mki: Uint8List(0));
-        break;
-      //case
-      case 11:
-        extension = ExtSupportedPointFormats(pointFormats: []);
-        break;
-      case 10:
-        extension = ExtSupportedEllipticCurves(curves: []);
-        break;
-      default:
-        extension =
-            ExtUnknown(type: extensionType, dataLength: extensionLength);
-    }
+//     Extension extension;
+//     switch (extensionType.value) {
+//       case 23:
+//         extension = ExtUseExtendedMasterSecret();
+//         break;
+//       case 14:
+//         extension = ExtUseSRTP(protectionProfiles: [], mki: Uint8List(0));
+//         break;
+//       //case
+//       case 11:
+//         extension = ExtSupportedPointFormats(pointFormats: []);
+//         break;
+//       case 10:
+//         extension = ExtSupportedEllipticCurves(curves: []);
+//         break;
+//       default:
+//         extension =
+//             ExtUnknown(type: extensionType, dataLength: extensionLength);
+//     }
 
-    extension.decode(extensionLength, buf, offset, arrayLen);
-    addExtension(result, extension);
-    offset += extensionLength;
-  }
+//     extension.decode(extensionLength, buf, offset, arrayLen);
+//     addExtension(result, extension);
+//     offset += extensionLength;
+//   }
 
-  return result;
-}
+//   return result;
+// }
 
-Uint8List encodeExtensionMap(Map<ExtensionType, Extension> extensionMap) {
-  final result = Uint8List(2);
-  var encodedBody = <int>[];
+// Uint8List encodeExtensionMap(Map<ExtensionType, Extension> extensionMap) {
+//   final result = Uint8List(2);
+//   var encodedBody = <int>[];
 
-  extensionMap.forEach((type, extension) {
-    final encodedExtension = extension.encode();
-    final encodedExtType = ByteData(2)..setUint16(0, type.value, Endian.big);
-    encodedBody.addAll(encodedExtType.buffer.asUint8List());
+//   extensionMap.forEach((type, extension) {
+//     final encodedExtension = extension.encode();
+//     final encodedExtType = ByteData(2)..setUint16(0, type.value, Endian.big);
+//     encodedBody.addAll(encodedExtType.buffer.asUint8List());
 
-    final encodedExtLen = ByteData(2)
-      ..setUint16(0, encodedExtension.length, Endian.big);
-    encodedBody.addAll(encodedExtLen.buffer.asUint8List());
-    encodedBody.addAll(encodedExtension);
-  });
+//     final encodedExtLen = ByteData(2)
+//       ..setUint16(0, encodedExtension.length, Endian.big);
+//     encodedBody.addAll(encodedExtLen.buffer.asUint8List());
+//     encodedBody.addAll(encodedExtension);
+//   });
 
-  ByteData.sublistView(result).setUint16(0, encodedBody.length, Endian.big);
-  return Uint8List.fromList(result + encodedBody);
-}
+//   ByteData.sublistView(result).setUint16(0, encodedBody.length, Endian.big);
+//   return Uint8List.fromList(result + encodedBody);
+// }
 
 void addExtension(
     Map<ExtensionType, Extension> extensionMap, Extension extension) {
@@ -347,12 +347,12 @@ void addExtension(
   extensionMap[extType] = extension;
 }
 
-void main() {
-  // Example usage
-  final buf = Uint8List.fromList(List.generate(50, (index) => index));
-  final extensionMap = decodeExtensionMap(buf, 0, buf.length);
-  final encodedMap = encodeExtensionMap(extensionMap);
+// void main() {
+//   // Example usage
+//   final buf = Uint8List.fromList(List.generate(50, (index) => index));
+//   final extensionMap = decodeExtensionMap(buf, 0, buf.length);
+//   final encodedMap = encodeExtensionMap(extensionMap);
 
-  print('Decoded Extensions: $extensionMap');
-  print('Encoded Extensions: $encodedMap');
-}
+//   print('Decoded Extensions: $extensionMap');
+//   print('Encoded Extensions: $encodedMap');
+// }
