@@ -41,16 +41,16 @@ class ServerHello {
   DtlsVersion version;
   Random random;
   Uint8List sessionId;
-  List<CipherSuiteID> cipherSuiteId;
-  Uint8List compressionMethodIDs;
-  Map<ExtensionType, dynamic> extensions;
+  CipherSuite cipherSuite;
+  int compressionMethodID;
+  Map<ExtensionType, dynamic>? extensions;
 
   ServerHello({
     required this.version,
     required this.random,
     required this.sessionId,
-    required this.cipherSuiteId,
-    required this.compressionMethodIDs,
+    required this.cipherSuite,
+    required this.compressionMethodID,
     required this.extensions,
   });
 
@@ -59,7 +59,7 @@ class ServerHello {
     var extensionsStr =
         extensions!.values.map((ext) => ext.toString()).join('\n');
     return '[ServerHello] Ver: $version, SessionID: ${sessionId.length}\n'
-        'Cipher Suite ID: $cipherSuiteId\n'
+        'Cipher Suite ID: $cipherSuite\n'
         'Extensions:\n$extensionsStr';
   }
 
@@ -72,57 +72,54 @@ class ServerHello {
   }
 
   Uint8List encode() {
-    final buffer = BytesBuilder();
-
-    // Encode the version (2 bytes)
-    buffer.addByte(version.major);
-    buffer.addByte(version.minor);
-
-    // Encode the random (32 bytes)
-    // buffer.add(convertTo4Bytes(
-    //     clientHello.random.gmtUnixTime.millisecondsSinceEpoch ~/ 1000));
-    buffer.add(random.encode());
-
-    // Encode the session ID (1 byte for length, then the session ID)
+    // Calculate total length dynamically
+    final randomBytesLength = random.randomBytes.length;
     final sessionIDLength = sessionId.length;
-    buffer.addByte(sessionIDLength);
-    buffer.add(sessionId);
 
-    // Encode the cookie (1 byte for length, then the cookie)
-    //final cookieLength = cookie;
-    //buffer.addByte(cookieLength);
-    //buffer.add(cookie);
-
-    // Encode the cipher suites (2 bytes for the length, then the cipher suites)
-    final cipherSuiteIDs = encodeCipherSuiteIDs(cipherSuiteId);
-    buffer.add(Uint8List.fromList(
-        [cipherSuiteIDs.length ~/ 2])); // Length of cipher suites list
-    buffer.add(cipherSuiteIDs);
-
-    // Encode the compression methods (1 byte for the length, then the methods)
-    final encodedCompressionMethodIDs =
-        encodeCompressionMethodIDs(compressionMethodIDs);
-    buffer.addByte(encodedCompressionMethodIDs.length);
-    buffer.add(encodedCompressionMethodIDs);
-
-    // Encode the extensions (length of extensions and the extensions themselves)
+    // Encode extensions and get their length
     final extensionsEncoded = encodeExtensionMap(extensions!);
-    buffer.add(Uint8List.fromList(
-        [extensionsEncoded.length ~/ 2])); // Length of extensions
-    buffer.add(extensionsEncoded);
+    final extensionsLength = extensionsEncoded.length;
 
-    // Return the final encoded ClientHello message
-    return buffer.toBytes();
+    // Allocate buffer for all components
+    final totalLength = 2 +
+        (4 + randomBytesLength) +
+        1 +
+        sessionIDLength +
+        2 +
+        1 +
+        extensionsLength;
+    final byteData = BytesBuilder();
+
+    // Write the protocol version (DtlsVersion) in big-endian order
+    byteData.add(int16ToUint8List(version.toUint16()));
+
+    // Encode and write the Random structure
+    byteData.add(random.encode());
+
+    // Write the Session ID length and value
+    byteData.addByte(sessionIDLength);
+    byteData.add(sessionId);
+
+    // Write the Cipher Suite ID
+    byteData.add(int16ToUint8List(cipherSuite.id.value));
+
+    // Write the Compression Method ID
+    byteData.addByte(compressionMethodID);
+
+    // Write the encoded Extensions
+    byteData.add(extensionsEncoded);
+
+    // Return the final Uint8List
+    return byteData.toBytes();
   }
 
   static (ServerHello, int, Exception?) decode(
-      Uint8List buf, int offset, int arrayLen) {
-    if (arrayLen < offset + 2) {
-      throw ArgumentError(
-          'Buffer too small to contain a valid ClientHello structure');
-    }
+      Uint8List buf, int offset, int arrayLen)
+  //(int, error)
+  {
+    // https://github.com/pion/dtls/blob/680c851ed9efc926757f7df6858c82ac63f03a5d/pkg/protocol/handshake/message_client_hello.go#L66
 
-    var version = DtlsVersion.fromUint16(
+    DtlsVersion version = DtlsVersion.fromUint16(
         ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big));
     offset += 2;
 
@@ -134,31 +131,31 @@ class ServerHello {
     var sessionID = buf.sublist(offset, offset + sessionIDLength);
     offset += sessionIDLength;
 
-    // var cookieLength = buf[offset];
-    //offset++;
-    //var cookie = buf.sublist(offset, offset + cookieLength);
-    //offset += cookieLength;
+    CipherSuiteID cipherSuiteID = CipherSuiteID(
+        ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big));
+    offset += 2;
 
-    var cipherSuiteIDs = decodeCipherSuiteIDs(buf, offset, arrayLen);
-    offset += 2 + cipherSuiteIDs.length * 2;
-
-    var compressionMethodIDs =
-        decodeCompressionMethodIDs(buf, offset, arrayLen);
-    offset += 1 + compressionMethodIDs.length;
+    var compressionMethodID = buf[offset];
+    offset++;
 
     var (extensions, decodedOffset, err) =
         decodeExtensionMap(buf, offset, arrayLen);
 
+    offset = offset + decodedOffset;
     return (
       ServerHello(
-        version: version,
-        random: random,
-        //cookie: cookie,
-        sessionId: sessionID,
-        cipherSuiteId: cipherSuiteIDs,
-        compressionMethodIDs: compressionMethodIDs,
-        extensions: extensions!,
-      ),
+          version: version,
+          random: random,
+          sessionId: sessionID,
+          cipherSuite: CipherSuite(
+            id: cipherSuiteID_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+            keyExchangeAlgorithm: keyExchangeAlgorithmECDHE,
+            certificateType: certificateTypeECDSASign,
+            hashAlgorithm: hashAlgorithmSHA256,
+            signatureAlgorithm: signatureAlgorithmECDSA,
+          ),
+          compressionMethodID: compressionMethodID,
+          extensions: extensions),
       offset,
       null
     );

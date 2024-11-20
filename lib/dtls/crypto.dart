@@ -167,10 +167,10 @@ String generateSelfSignedCertificateKelly() {
 }
 
 Uint8List generateValueKeyMessage(Uint8List clientRandom,
-    Uint8List serverRandom, Uint8List publicKey, int curve) {
+    Uint8List serverRandom, Uint8List publicKey, Curve curve) {
   final serverECDHParams = Uint8List(4);
   serverECDHParams[0] = 3; // CurveTypeNamedCurve
-  serverECDHParams.buffer.asByteData().setUint16(1, curve);
+  serverECDHParams.buffer.asByteData().setUint16(1, curve.value);
   serverECDHParams[3] = publicKey.length;
 
   final plaintext = Uint8List.fromList([
@@ -187,7 +187,7 @@ Future<Uint8List> generateKeySignature(
     Uint8List clientRandom,
     Uint8List serverRandom,
     Uint8List publicKey,
-    int curve,
+    Curve curve,
     ECPrivateKey privateKey) async {
   final msg =
       generateValueKeyMessage(clientRandom, serverRandom, publicKey, curve);

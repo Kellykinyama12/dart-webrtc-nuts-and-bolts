@@ -1,6 +1,16 @@
 import 'dart:typed_data';
+import 'dart:math' as dmath;
 
 const int randomBytesLength = 28;
+
+Uint8List generateRandomBytes(int length) {
+  final random = dmath.Random.secure();
+  final bytes = Uint8List(length);
+  for (int i = 0; i < length; i++) {
+    bytes[i] = random.nextInt(256);
+  }
+  return bytes;
+}
 
 class Random {
   DateTime gmtUnixTime;

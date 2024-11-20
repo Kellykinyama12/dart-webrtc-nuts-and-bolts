@@ -1,31 +1,62 @@
+import 'dart:convert';
 import 'dart:typed_data';
-import 'package:dart_webrtc_nuts_and_bolts/dtls/crypto.dart';
-import 'package:pointycastle/ecc/api.dart';
+import 'dart:math';
 import 'package:pointycastle/export.dart';
-import 'package:pointycastle/api.dart' as pc;
-import 'package:asn1lib/asn1lib.dart';
-import 'package:logging/logging.dart';
-import 'package:pointycastle/pointycastle.dart';
-//import 'config.dart'; // Assuming you have a config.dart file
+//import 'package:basic_utils/basic_utils.dart';
+//import 'package:convert/convert.dart';
+//import 'package:cryptography/cryptography.dart'
+//    as cryptography; // Add this import
+
 import 'package:basic_utils/basic_utils.dart' as cryptoUtils;
 
-final Logger logger = Logger('DTLS');
+//import 'package:asn1lib/asn1lib.dart';
 
-late Uint8List serverCertificate;
-late String serverCertificateFingerprint;
+class EcdsaSignature {
+  BigInt r, s;
+  EcdsaSignature(this.r, this.s);
+}
 
-void init() async {
-  logger.info('Initializing self signed certificate for server...');
-  try {
-    serverCertificate = await generateServerCertificate("localhost");
-    serverCertificateFingerprint =
-        getCertificateFingerprint(serverCertificate!);
-    logger.info(
-        'Self signed certificate created with fingerprint $serverCertificateFingerprint');
-    logger.info(
-        'This certificate is stored in dtls.ServerCertificate variable globally, it will be used while DTLS handshake, sending SDP, SRTP, SRTCP packets, etc...');
-  } catch (e) {
-    logger.severe('Failed to generate server certificate: $e');
-    rethrow;
-  }
+Uint8List generateSelfSignedCertificate() {
+  cryptoUtils.AsymmetricKeyPair<cryptoUtils.PublicKey, cryptoUtils.PrivateKey>
+      pair = cryptoUtils.CryptoUtils.generateEcKeyPair();
+  var privKey = pair.privateKey as cryptoUtils.ECPrivateKey;
+  var pubKey = pair.publicKey as cryptoUtils.ECPublicKey;
+  var dn = {
+    'CN': 'Self-Signed',
+  };
+  var csr = cryptoUtils.X509Utils.generateEccCsrPem(dn, privKey, pubKey);
+
+  var x509PEM = cryptoUtils.X509Utils.generateSelfSignedCertificate(
+    privKey,
+    csr,
+    365,
+  );
+  //return x509PEM;
+  return Uint8List.fromList(utf8.encode(x509PEM));
+}
+
+// Future<AsymmetricKeyPair<PublicKey, PrivateKey>>
+//     generateServerCertificatePrivateKey() async {
+//   print("Generating ecc private key");
+//   final keyParams = ECKeyGeneratorParameters(ECCurve_secp256r1());
+//   final random = FortunaRandom();
+//   final keyGen = ECKeyGenerator();
+//   keyGen.init(ParametersWithRandom(keyParams, random));
+//   return keyGen.generateKeyPair();
+// }
+
+Future<AsymmetricKeyPair<PublicKey, PrivateKey>>
+    generateServerCertificatePrivateKey() async {
+  print("Generating ECC private key");
+  final keyParams = ECKeyGeneratorParameters(ECCurve_secp256r1());
+  final random = FortunaRandom();
+
+  // Seed the random number generator
+  final seed = Uint8List.fromList(
+      List<int>.generate(32, (_) => Random.secure().nextInt(256)));
+  random.seed(KeyParameter(seed));
+
+  final keyGen = ECKeyGenerator();
+  keyGen.init(ParametersWithRandom(keyParams, random));
+  return keyGen.generateKeyPair();
 }

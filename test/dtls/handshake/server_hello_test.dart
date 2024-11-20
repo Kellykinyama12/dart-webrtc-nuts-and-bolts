@@ -9,7 +9,7 @@ void test_handshake_message_server_hello() {
       ServerHello.decode(raw_server_hello, 0, raw_server_hello.length);
   print("decoded server hello: $serverHello");
 
-  print("raw server hello     : $raw_server_hello");
+  print("raw server hello    : $raw_server_hello");
   print("encoded server hello: ${serverHello.encode()}");
 }
 

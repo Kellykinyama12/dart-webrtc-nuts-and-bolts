@@ -33,15 +33,15 @@ class HandshakeContext {
 
   late DTLSState dtlsState;
   //OnDTLSStateChangeHandler func(DTLSState)
-  late Uint8List sessionId;
+  Uint8List sessionId = Uint8List(0);
   late CipherSuiteID cipherSuiteId;
-  late Uint8List compressionMethodId;
-  late Map<ExtensionType, Extension> extensions;
-  late List<PointFormat> pointFormats = [];
+  late int compressionMethodId = 0;
+  Map<ExtensionType, dynamic> extensions = {};
+  List<PointFormat> pointFormats = [];
 
   late DtlsVersion protocolVersion;
   late CipherSuite cipherSuite;
-  late CurveType curveType;
+  late CurveType curveType = CurveType(0x03);
   late Curve curve;
   SRTPProtectionProfile srtpProtectionProfile = SRTPProtectionProfile(0x0007);
   late Random clientRandom;

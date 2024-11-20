@@ -144,6 +144,8 @@ List<CipherSuiteID> decodeCipherSuiteIDs(
       ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big);
   var count = length ~/ 2;
   offset += 2;
+
+  print("count: $count");
   var result = List<CipherSuiteID>.generate(count, (i) {
     var id = CipherSuiteID(
         ByteData.sublistView(buf, offset, offset + 2).getUint16(0, Endian.big));

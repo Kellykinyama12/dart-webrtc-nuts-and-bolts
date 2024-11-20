@@ -4,9 +4,12 @@ import 'dart:math' as dmath;
 
 import 'package:crypto/crypto.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/cipher_suites.dart';
-import 'package:dart_webrtc_nuts_and_bolts/dtls/crypto.dart';
+//import 'package:dart_webrtc_nuts_and_bolts/dtls/crypto.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/crypto2.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/crypto_gcm.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/dtls_message.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/dtls_random.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/alert.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/algo_pair.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/certificate.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/certificate_request.dart';
@@ -208,9 +211,80 @@ class HandshakeManager {
               } else {
                 print("Receive cookie ${message.cookie}");
               }
+
+// if !bytes.Equal(context.Cookie, message.Cookie) {
+// 				return m.setStateFailed(context, errors.New("client hello cookie is invalid"))
+// 			}
+              var (negotiatedCipherSuite, err) =
+                  negotiateOnCipherSuiteIDs(message.cipherSuiteIDs);
+              if (err != null) {
+                //return setStateFailed(context, err);
+              }
+              context.cipherSuite = negotiatedCipherSuite!;
+// 			logging.Descf(logging.ProtoDTLS, "Negotiation on cipher suites: Client sent a list of cipher suites, server selected one of them (mutually supported), and assigned in handshake context: %s", negotiatedCipherSuite)
+
+              message.extensions.forEach((key, extensionItem) {
+                if (extensionItem.runtimeType == ExtSupportedEllipticCurves) {
+                  var (negotiatedCurve, err) =
+                      negotiateOnCurves(extensionItem.curves);
+                  context.curve = negotiatedCurve!;
+                  context.extensions[key] =
+                      ExtSupportedEllipticCurves(curves: [negotiatedCurve]);
+                } else if (extensionItem.runtimeType == ExtUseSRTP) {
+                  var (negotiatedProtectionProfile, err) =
+                      negotiateOnSRTPProtectionProfiles(
+                          extensionItem.protectionProfiles);
+                  context.srtpProtectionProfile = negotiatedProtectionProfile!;
+                  context.extensions[key] = context.srtpProtectionProfile;
+                  context.extensions[key] = ExtUseSRTP(
+                      protectionProfiles: [context.srtpProtectionProfile],
+                      mki: Uint8List(0));
+                } else if (extensionItem.runtimeType ==
+                    ExtUseExtendedMasterSecret) {
+                  context.UseExtendedMasterSecret = true;
+                  context.extensions[key] = ExtUseExtendedMasterSecret();
+                }
+              });
+
+              context.clientRandom = message.random;
+// 			logging.Descf(logging.ProtoDTLS, "Client sent Client Random, it set to <u>0x%x</u> in handshake context.", message.Random.Encode())
+              context.serverRandom = Random(
+                  gmtUnixTime: DateTime.now(),
+                  randomBytes: generateRandomBytes(randomBytesLength));
+// 			context.ServerRandom.Generate()
+// 			logging.Descf(logging.ProtoDTLS, "We generated Server Random, set to <u>0x%x</u> in handshake context.", context.ServerRandom.Encode())
+
+              final (serverPrivateKey, serverPublicKey) =
+                  await generateCurveKeypair('CurveX25519');
+// 			if err != nil {
+// 				return m.setStateFailed(context, err)
+// 			}
+
+              context.serverPublicKey = serverPublicKey;
+              context.serverPrivateKey = serverPrivateKey;
+// 			logging.Descf(logging.ProtoDTLS, "We generated Server Public and Private Key pair via <u>%s</u>, set in handshake context. Public Key: <u>0x%x</u>", context.Curve, context.ServerPublicKey)
+
+              final clientRandomBytes = context.clientRandom.encode();
+              final serverRandomBytes = context.serverRandom.encode();
+
+// 			logging.Descf(logging.ProtoDTLS, "Generating ServerKeySignature. It will be sent to client via ServerKeyExchange DTLS message further.")
+              var (serverKeySignature, _) = await generateKeySignature(
+                  clientRandomBytes,
+                  serverRandomBytes,
+                  context.serverPublicKey,
+                  context.curve, //x25519
+                  context.serverPrivateKey,
+                  context.cipherSuite.hashAlgorithm);
+// 			if err != nil {
+// 				return m.setStateFailed(context, err)
+// 			}
+// 			logging.Descf(logging.ProtoDTLS, "ServerKeySignature was generated and set in handshake context (<u>%d bytes</u>).", len(context.ServerKeySignature))
+
+              context.serverKeySignature = serverKeySignature;
+
               ServerHello serverHelloResponse = createDtlsServerHello(context);
               sendMessage(context, serverHelloResponse);
-              Certificate certificateResponse = createDtlsCertificate();
+              Certificate certificateResponse = await createDtlsCertificate();
               sendMessage(context, certificateResponse);
               ServerKeyExchange serverKeyExchangeResponse =
                   createDtlsServerKeyExchange(context);
@@ -221,6 +295,8 @@ class HandshakeManager {
               ServerHelloDone serverHelloDoneResponse =
                   createDtlsServerHelloDone(context);
               sendMessage(context, serverHelloDoneResponse);
+              context.flight = Flight.Flight4;
+              break;
             //throw UnimplementedError();
             case Flight.Flight4:
               // TODO: Handle this case.
@@ -230,7 +306,8 @@ class HandshakeManager {
               throw UnimplementedError();
           }
         }
-
+      case Alert:
+        print("alert: ${decodedMessage.message}");
       default:
       //print("unhandle runtime type: ${decodedMessage}");
     }
@@ -421,19 +498,19 @@ class HandshakeManager {
       version: context.protocolVersion,
       random: context.serverRandom,
       sessionId: context.sessionId,
-      cipherSuiteId: [context.cipherSuiteId],
-      compressionMethodIDs: context.compressionMethodId,
+      cipherSuite: context.cipherSuite,
+      compressionMethodID: context.compressionMethodId,
       extensions: context.extensions,
     );
   }
 
-  Certificate createDtlsCertificate() {
+  Future<Certificate> createDtlsCertificate() async {
     // logging.Descf(logging.ProtoDTLS, "Sending Server certificate (<u>%d bytes</u>) to the client.", len(ServerCertificate.Certificate))
     // result := Certificate{
     // 	Certificates: ServerCertificate.Certificate,
     // }
     // return result
-    return Certificate(certificates: [serverCertificate]);
+    return Certificate(certificates: [generateSelfSignedCertificate()]);
   }
 
   ServerKeyExchange createDtlsServerKeyExchange(HandshakeContext context) {
@@ -565,22 +642,53 @@ class HandshakeManager {
     // return nil
   }
 
+//   (CipherSuite?, Exception?) negotiateOnCipherSuiteIDs(
+//       List<CipherSuiteID> clientCipherSuiteIDs)
+// //  (*CipherSuite, error)
+//   {
+//     // for _, clientCipherSuiteID := range clientCipherSuiteIDs {
+//     // 	foundCipherSuite, ok := SupportedCipherSuites[clientCipherSuiteID]
+//     // 	if ok {
+//     // 		return &foundCipherSuite, nil
+//     // 	}
+//     // }
+//     // return nil, errors.New("cannot find mutually supported cipher suite between client and server")
+//     return (
+//       null,
+//       Exception(
+//           "cannot find mutually supported cipher suite between client and server")
+//     );
+//   }
+
   (CipherSuite?, Exception?) negotiateOnCipherSuiteIDs(
-      List<CipherSuiteID> clientCipherSuiteIDs)
-//  (*CipherSuite, error)
-  {
-    // for _, clientCipherSuiteID := range clientCipherSuiteIDs {
-    // 	foundCipherSuite, ok := SupportedCipherSuites[clientCipherSuiteID]
-    // 	if ok {
-    // 		return &foundCipherSuite, nil
-    // 	}
-    // }
-    // return nil, errors.New("cannot find mutually supported cipher suite between client and server")
-    return (
-      null,
-      Exception(
-          "cannot find mutually supported cipher suite between client and server")
-    );
+      List<CipherSuiteID> clientCipherSuiteIDs
+      //, Map<CipherSuiteID, CipherSuite> supportedCipherSuites
+      ) {
+    //print("ciphers supported: $supportedCipherSuites");
+    for (var clientCipherSuiteID in clientCipherSuiteIDs) {
+      // print("ciphers from client: $clientCipherSuiteID");
+      if (supportedCipherSuites.containsKey(clientCipherSuiteID)) {
+        return (supportedCipherSuites[clientCipherSuiteID], null);
+      }
+
+      if (clientCipherSuiteID.value == 0xc02b) {
+        print("found cipher: $clientCipherSuiteID");
+        return (
+          CipherSuite(
+            id: cipherSuiteID_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+            keyExchangeAlgorithm: keyExchangeAlgorithmECDHE,
+            certificateType: certificateTypeECDSASign,
+            hashAlgorithm: hashAlgorithmSHA256,
+            signatureAlgorithm: signatureAlgorithmECDSA,
+          ),
+          null
+        );
+      }
+    }
+
+    //clientCipherSuiteIDs.forEach((value) {});
+    throw Exception(
+        "Cannot find mutually supported cipher suite between client and server");
   }
 
   (Curve?, Exception?) negotiateOnCurves(List<Curve> clientCurves)
@@ -593,11 +701,16 @@ class HandshakeManager {
     // 	}
     // }
     // return 0, errors.New("cannot find mutually supported curve between client and server")
-    return (
-      null,
-      Exception(
-          "cannot find mutually supported curve between client and server")
-    );
+    print("Client curves: $clientCurves");
+
+    for (var curve in clientCurves) {
+      if (curve.value == 0x001d) {
+        return (curve, null);
+      }
+    }
+
+    throw Exception(
+        "cannot find mutually supported curve between client and server");
   }
 
   (SRTPProtectionProfile?, Exception?) negotiateOnSRTPProtectionProfiles(
