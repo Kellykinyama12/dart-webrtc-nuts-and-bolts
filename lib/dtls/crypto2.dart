@@ -157,7 +157,7 @@ Future<(Uint8List, Exception?)> generateKeySignature(
     keyPair: privateKey,
   );
 
-  print("signature: ${signature.bytes}. length: ${signature.bytes.length}");
+  // print("signature: ${signature.bytes}. length: ${signature.bytes.length}");
   // Return the signature
   return (Uint8List.fromList(signature.bytes), null);
   //} catch (e) {

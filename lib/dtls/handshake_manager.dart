@@ -13,8 +13,10 @@ import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/alert.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/algo_pair.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/certificate.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/certificate_request.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/certificate_verify.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/change_cipher_spec.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/client_hello.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/client_key_exchange.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/finished.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/handshake_context.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/handshake/hello_verify_request.dart';
@@ -45,9 +47,9 @@ class HandshakeManager {
         {
           //print("Protocol version: ${context.protocolVersion}");
           context.protocolVersion = decodedMessage.recordHeader!.version;
-          print("Protocol version: ${context.protocolVersion}");
+          //print("Protocol version: ${context.protocolVersion}");
           final message = decodedMessage.message as ClientHello;
-          print("Client hello Protocol version: ${message.version}");
+          //print("Client hello Protocol version: ${message.version}");
           switch (context.flight) {
             case Flight.Flight0:
               // print("Message result: ${decodedMessage.message.runtimeType}");
@@ -89,7 +91,7 @@ class HandshakeManager {
               //print("Create the HelloVerifyRequest object");
               final HelloVerifyRequest hvr =
                   createDtlsHelloVerifyRequest(context);
-              print("created hvr: $hvr");
+              //print("created hvr: $hvr");
               await sendMessage(context, hvr);
               context.flight = Flight.Flight2;
               break;
@@ -299,15 +301,26 @@ class HandshakeManager {
               break;
             //throw UnimplementedError();
             case Flight.Flight4:
-              // TODO: Handle this case.
-              throw UnimplementedError();
+            // TODO: Handle this case.
+            //throw UnimplementedError();
             case Flight.Flight6:
-              // TODO: Handle this case.
-              throw UnimplementedError();
+            // TODO: Handle this case.
+            // throw UnimplementedError();
           }
         }
+
+      case Certificate:
+        print("message: ${decodedMessage.message}");
+
+      case ClientKeyExchange:
+        print("message: ${decodedMessage.message}");
+      case CertificateVerify:
+        print("message: ${decodedMessage.message}");
       case Alert:
         print("alert: ${decodedMessage.message}");
+
+      case Finished:
+        print("message: ${decodedMessage.message}");
       default:
       //print("unhandle runtime type: ${decodedMessage}");
     }
@@ -394,7 +407,7 @@ class HandshakeManager {
     Uint8List sequenceNumber = uint48ToUint8List(context.serverSequenceNumber);
 
     // Create record header
-    print("encoded message length: ${encodedMessage!.length}");
+    //print("encoded message length: ${encodedMessage!.length}");
     RecordHeader recordheader = RecordHeader(
         contentType: message.getContentType(),
         version: DtlsVersion(254, 255),
@@ -411,13 +424,13 @@ class HandshakeManager {
     final Uint8List encodedRecordHeader = recordheader.encode();
     var (rh, _, _) =
         decodeRecordHeader(encodedRecordHeader, 0, encodedRecordHeader.length);
-    print("record header: $rh");
-    print("encoded record header: $encodedRecordHeader");
+    // print("record header: $rh");
+    //print("encoded record header: $encodedRecordHeader");
     //print("encode record header: $rh");
 
     encodedMessage =
         Uint8List.fromList([...encodedRecordHeader, ...encodedMessage]);
-    print("encoded message: $encodedMessage");
+    // print("encoded message: $encodedMessage");
 
     // Log the message (replace with your logging mechanism)
     //print("Sending message (Flight ${context.flight})");
@@ -445,7 +458,7 @@ class HandshakeManager {
         context, encodedMessage, 0, encodedMessage.length);
     // print(
     //     "Encoded dtls message protocol version: ${encodedMessage.sublist(1, 3)}");
-    print("Encoded dtls message: ${dtlsMsg}");
+    //print("Encoded dtls message: ${dtlsMsg}");
 
     // context.Conn.WriteToUDP(encodedMessage, context.Addr)
     // print("Sending to: ${context.addr}:${context.port}");
