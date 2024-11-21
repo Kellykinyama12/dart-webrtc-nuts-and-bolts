@@ -1,4 +1,15 @@
-output: "lib/bindings2.dart"
+output: "lib/bindings3.dart"
 headers:
   entry-points:
-    - "library/libdtls2.h"
+    - "library/libdtls.h"
+  functions:
+    include:
+      - generateValueKeyMessage
+      - PHash
+      - VerifyFinishedData
+      - GenerateServerCertificate
+      - GenerateCurveKeypair
+      - GenerateKeySignature
+      - GetCertificateFingerprintFromBytes
+      - GeneratePreMasterSecret
+      - VerifyCertificate
