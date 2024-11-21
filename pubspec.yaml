@@ -22,6 +22,7 @@ dependencies:
   pem: ^2.0.5
   cryptography_flutter: ^2.3.2
   ffi: ^2.1.3
+  ffigen: ^16.0.0
   # path: ^1.8.0
 
 dev_dependencies:

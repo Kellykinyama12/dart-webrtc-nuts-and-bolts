@@ -1,0 +1,4 @@
+output: "lib/bindings2.dart"
+headers:
+  entry-points:
+    - "library/libdtls2.h"

@@ -1,8 +1,10 @@
 import 'dart:ffi';
 import 'dart:io';
 
+import 'package:dart_webrtc_nuts_and_bolts/bindings2.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/ffi.dart';
 import 'package:ffi/ffi.dart';
+
 
 void main() {
   // // Example usage of a function
@@ -27,4 +29,6 @@ void main() {
   final DynamicLibrary dtlsLib = Platform.isWindows
       ? DynamicLibrary.open('library/libdtls.dll')
       : throw UnsupportedError('Unsupported platform');
+
+      generateServerCertificate();
 }
