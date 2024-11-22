@@ -2,10 +2,11 @@ import 'dart:io' as io;
 import 'dart:typed_data';
 import 'dart:math' as dmath;
 
-import 'package:crypto/crypto.dart';
+import 'package:crypto/crypto.dart' as crypto;
+import 'package:cryptography/cryptography.dart' as cryptography;
 import 'package:dart_webrtc_nuts_and_bolts/dtls/cipher_suites.dart';
 //import 'package:dart_webrtc_nuts_and_bolts/dtls/crypto.dart';
-import 'package:dart_webrtc_nuts_and_bolts/dtls/crypto2.dart';
+import 'package:dart_webrtc_nuts_and_bolts/dtls/crypto_final.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/crypto_gcm.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/dtls_message.dart';
 import 'package:dart_webrtc_nuts_and_bolts/dtls/dtls_random.dart';
@@ -256,27 +257,29 @@ class HandshakeManager {
 // 			context.ServerRandom.Generate()
 // 			logging.Descf(logging.ProtoDTLS, "We generated Server Random, set to <u>0x%x</u> in handshake context.", context.ServerRandom.Encode())
 
-              final (serverPrivateKey, serverPublicKey) =
-                  await generateCurveKeypair('CurveX25519');
+              final keyPair =
+                  await generateCurveKeypair(cryptography.KeyPairType.ed25519);
+
 // 			if err != nil {
 // 				return m.setStateFailed(context, err)
 // 			}
 
-              context.serverPublicKey = serverPublicKey;
-              context.serverPrivateKey = serverPrivateKey;
+              context.serverPublicKey =
+                  Uint8List.fromList((await keyPair.extractPublicKey()).bytes);
+              context.serverPrivateKey =
+                  Uint8List.fromList((await keyPair.extractPrivateKeyBytes()));
 // 			logging.Descf(logging.ProtoDTLS, "We generated Server Public and Private Key pair via <u>%s</u>, set in handshake context. Public Key: <u>0x%x</u>", context.Curve, context.ServerPublicKey)
 
               final clientRandomBytes = context.clientRandom.encode();
               final serverRandomBytes = context.serverRandom.encode();
 
 // 			logging.Descf(logging.ProtoDTLS, "Generating ServerKeySignature. It will be sent to client via ServerKeyExchange DTLS message further.")
-              var (serverKeySignature, _) = await generateKeySignature(
+              var serverKeySignature = await generateKeySignature(
                   clientRandomBytes,
                   serverRandomBytes,
                   context.serverPublicKey,
                   context.curve, //x25519
-                  context.serverPrivateKey,
-                  context.cipherSuite.hashAlgorithm);
+                  context.serverPrivateKey);
 // 			if err != nil {
 // 				return m.setStateFailed(context, err)
 // 			}
@@ -336,8 +339,8 @@ class HandshakeManager {
     return cookie;
   }
 
-  Uint8List generateHmacDtlsCookie(
-      Uint8List clientIp, Uint8List clientPort, Uint8List secret) {
+  Future<Uint8List> generateHmacDtlsCookie(
+      Uint8List clientIp, Uint8List clientPort, Uint8List secret) async {
     // Combine client IP and port
     final data = BytesBuilder()
       ..add(clientIp)
@@ -345,13 +348,17 @@ class HandshakeManager {
       ..toBytes();
 
     // Create HMAC using SHA-256
-    final hmac = Hmac(sha256, secret);
+    final hmac = cryptography.Hmac(cryptography.Sha256());
 
     // Generate the HMAC digest
-    final digest = hmac.convert(data.toBytes());
+    //final digest = hmac.(data.toBytes());
+    final mac = await hmac.calculateMac(
+      data.toBytes(),
+      secretKey: cryptography.SecretKey(secret),
+    );
 
     // Return the digest as Uint8List
-    return Uint8List.fromList(digest.bytes);
+    return Uint8List.fromList(mac.bytes);
   }
 
   Future<void> sendMessage(HandshakeContext context, dynamic message) async {
@@ -601,13 +608,13 @@ class HandshakeManager {
   }
 
   Future<Exception?> initCipherSuite(HandshakeContext context) async {
-    var (preMasterSecret, err) = await generatePreMasterSecret(
+    final preMasterSecret = await generatePreMasterSecret(
         context.ClientKeyExchangePublic,
         context.serverPrivateKey,
         context.curve);
-    if (err != null) {
-      return err;
-    }
+    // if (err != null) {
+    //   return err;
+    // }
     Uint8List clientRandomBytes = context.clientRandom.encode();
     Uint8List serverRandomBytes = context.serverRandom.encode();
 
@@ -628,12 +635,12 @@ class HandshakeManager {
       //logging.Descf(logging.ProtoDTLS, "Calculated Hanshake Hash: 0x%x (%d bytes). This data will be used to generate Extended Master Secret further.", handshakeHash, len(handshakeHash))
       //(context.serverMasterSecret, err)
 
-      var (serverMasterSecret, err) = await generateExtendedMasterSecret(
+      final serverMasterSecret = await generateExtendedMasterSecret(
           preMasterSecret, handshakeHash, context.cipherSuite.hashAlgorithm);
       context.serverMasterSecret = serverMasterSecret;
       // logging.Descf(logging.ProtoDTLS, "Generated ServerMasterSecret (Extended): <u>0x%x</u> (<u>%d bytes</u>), using Pre-Master Secret and Hanshake Hash. Client Random and Server Random was not used.", context.ServerMasterSecret, len(context.ServerMasterSecret))
     } else {
-      var (serverMasterSecret, err) = await generateMasterSecret(
+      final serverMasterSecret = await generateMasterSecret(
           preMasterSecret,
           clientRandomBytes,
           serverRandomBytes,
@@ -641,9 +648,9 @@ class HandshakeManager {
       context.serverMasterSecret = serverMasterSecret;
       // logging.Descf(logging.ProtoDTLS, "Generated ServerMasterSecret (Not Extended): <u>0x%x</u> (<u>%d bytes</u>), using Pre-Master Secret, Client Random and Server Random.", context.ServerMasterSecret, len(context.ServerMasterSecret))
     }
-    if (err != null) {
-      return err;
-    }
+    // if (err != null) {
+    //   return err;
+    // }
     GCM gcm = await GCM.create(context.serverMasterSecret, clientRandomBytes,
         serverRandomBytes, Uint8List(0));
     //(gcm, err) = initGCM(context.serverMasterSecret, clientRandomBytes, serverRandomBytes, context.cipherSuite);
